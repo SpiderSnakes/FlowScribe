@@ -163,6 +163,7 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "Y8XLVL2758"
     ARCHS: arm64
 packages:
   FlowScribeCore:
