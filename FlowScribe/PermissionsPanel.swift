@@ -21,6 +21,11 @@ final class PermissionsModel {
         refresh()
     }
 
+    // Demandes individuelles (pilotées par l'onboarding, une étape à la fois).
+    func requestMicrophone() async { await Permissions.requestMicrophone(); refresh() }
+    func requestSpeech() async { await Permissions.requestSpeech(); refresh() }
+    func requestAccessibility() { Permissions.promptAccessibility(); refresh() }
+
     var allGranted: Bool { mic == .granted && speech == .granted && accessibility }
 }
 

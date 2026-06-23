@@ -26,6 +26,10 @@ final class SettingsStore {
     var retentionDays: Int {
         didSet { defaults.set(retentionDays, forKey: "retentionDays") }
     }
+    /// Onboarding vu au moins une fois (sinon on affiche l'accueil des permissions).
+    var hasSeenOnboarding: Bool {
+        didSet { defaults.set(hasSeenOnboarding, forKey: "hasSeenOnboarding") }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -35,6 +39,7 @@ final class SettingsStore {
         self.musicControlEnabled = defaults.bool(forKey: "musicControlEnabled")
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
+        self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
     }
 
     func apiKey(for provider: EngineProvider) -> String {

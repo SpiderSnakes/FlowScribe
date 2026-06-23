@@ -15,13 +15,19 @@ struct FlowScribeApp: App {
 
     var body: some Scene {
         WindowGroup("FlowScribe") {
-            RootView(settings: settings, permissions: permissions,
-                     glossary: glossary, profiles: profiles, history: history,
-                     onToggleRecord: { toggleRecord() },
-                     onRetranscribe: { r, p in await retranscribe(r, with: p) },
-                     onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) })
-                .frame(minWidth: 720, minHeight: 480)
-                .task { await setup() }
+            Group {
+                if settings.hasSeenOnboarding {
+                    RootView(settings: settings, permissions: permissions,
+                             glossary: glossary, profiles: profiles, history: history,
+                             onToggleRecord: { toggleRecord() },
+                             onRetranscribe: { r, p in await retranscribe(r, with: p) },
+                             onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) })
+                } else {
+                    OnboardingView(permissions: permissions) { settings.hasSeenOnboarding = true }
+                }
+            }
+            .frame(minWidth: 720, minHeight: 480)
+            .task { await setup() }
         }
         .windowStyle(.hiddenTitleBar)   // pas de grand bandeau « FlowScribe » ; pastilles superposées
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
@@ -72,8 +78,7 @@ struct FlowScribeApp: App {
 
     @MainActor
     private func setup() async {
-        permissions.refresh()
-        await permissions.requestAll()
+        permissions.refresh()   // l'onboarding pilote les demandes ; pas d'invite groupée au lancement
         guard controller == nil else { return }
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let recorder = MicrophoneRecorder(outputDirectory: dir)
