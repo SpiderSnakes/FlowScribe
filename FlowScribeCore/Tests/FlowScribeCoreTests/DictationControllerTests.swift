@@ -63,4 +63,31 @@ final class DictationControllerTests: XCTestCase {
         c.pressDown(); await c.pressUp(kind: .hold)
         XCTAssertEqual(out.delivered, ["nouveau"])
     }
+
+    final class SpyPlayer: MediaPlayer {
+        nonisolated(unsafe) var playing: Set<MediaSource>
+        nonisolated(unsafe) var paused: [MediaSource] = []
+        nonisolated(unsafe) var resumed: [MediaSource] = []
+        init(playing: Set<MediaSource>) { self.playing = playing }
+        func isPlaying(_ s: MediaSource) -> Bool { playing.contains(s) }
+        func pause(_ s: MediaSource) { paused.append(s); playing.remove(s) }
+        func play(_ s: MediaSource) { resumed.append(s); playing.insert(s) }
+    }
+
+    func test_pausesMediaOnRecord_andResumesOnFinish() async {
+        let (c, _, _) = makeController()
+        let player = SpyPlayer(playing: [.spotify])
+        c.mediaController = MediaController(player: player, enabled: true)
+        c.pressDown()
+        XCTAssertEqual(player.paused, [.spotify])      // pause au démarrage
+        await c.pressUp(kind: .hold)
+        XCTAssertEqual(player.resumed, [.spotify])     // reprise à la fin
+    }
+
+    func test_appliesCleanup_beforeDeliver() async {
+        let (c, _, out) = makeController()             // moteur primaire renvoie "salut"
+        c.cleanup = { "\($0) [propre]" }
+        c.pressDown(); await c.pressUp(kind: .hold)
+        XCTAssertEqual(out.delivered, ["salut [propre]"])
+    }
 }

@@ -7,15 +7,18 @@ public final class DictationController {
     public private(set) var state: DictationState = .idle
     public private(set) var lastTranscript: String?
 
-    /// Notifié à la fin d'une dictée (sert à l'UI : afficher le moteur utilisé / le repli).
+    /// Notifié à la fin d'une dictée (UI : moteur utilisé / repli).
     public var onFinish: ((TranscriptionOutcome) -> Void)?
+    /// Contrôle musique optionnel (pause au début, reprise à la fin).
+    public var mediaController: MediaController?
+    /// Nettoyage IA optionnel appliqué avant le collage.
+    public var cleanup: ((String) async -> String)?
 
     private let recorder: AudioRecorder
     private var service: TranscriptionService
     private var locale: Locale
     private let output: TextOutput
 
-    /// True si l'appui en cours a lui-même démarré l'enregistrement (sert au comportement du tap).
     private var pressStartedRecording = false
 
     public init(recorder: AudioRecorder, service: TranscriptionService, output: TextOutput, locale: Locale) {
@@ -25,19 +28,18 @@ public final class DictationController {
         self.locale = locale
     }
 
-    /// Remplace le moteur/la langue à chaud (changement de réglages sans relancer l'app).
     public func configure(service: TranscriptionService, locale: Locale) {
         self.service = service
         self.locale = locale
     }
 
-    /// Appel sur keyDown du hotkey.
     public func pressDown() {
         if state == .idle {
             do {
                 try recorder.start()
                 state = .recording
                 pressStartedRecording = true
+                mediaController?.pauseForDictation()
             } catch {
                 state = .idle
             }
@@ -46,7 +48,6 @@ public final class DictationController {
         }
     }
 
-    /// Appel sur keyUp du hotkey, avec le type d'appui classifié.
     public func pressUp(kind: PressKind) async {
         switch kind {
         case .hold:
@@ -63,12 +64,15 @@ public final class DictationController {
         let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
         switch outcome {
         case let .success(text, _, _):
-            lastTranscript = text
-            output.deliver(text)
+            var finalText = text
+            if let cleanup { finalText = await cleanup(finalText) }
+            lastTranscript = finalText
+            output.deliver(finalText)
         case .failed:
             lastTranscript = nil
         }
         state = .idle
+        mediaController?.resumeAfterDictation()
         onFinish?(outcome)
     }
 }
