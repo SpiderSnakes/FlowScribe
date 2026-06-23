@@ -45,13 +45,22 @@ struct PermissionsView: View {
             PermissionRow(label: "Micro", ok: model.mic == .granted)
             PermissionRow(label: "Reconnaissance vocale", ok: model.speech == .granted)
             PermissionRow(label: "Accessibilité (collage)", ok: model.accessibility)
+            Button("Demander les autorisations") { Task { await model.requestAll() } }
+                .padding(.top, 4)
             HStack {
-                Button("Demander les autorisations") { Task { await model.requestAll() } }
-                Button("Ouvrir Réglages") { Permissions.openAccessibilitySettings() }
+                if model.mic != .granted {
+                    Button("Réglages Micro") { Permissions.openMicrophoneSettings() }
+                }
+                if !model.accessibility {
+                    Button("Réglages Accessibilité") { Permissions.openAccessibilitySettings() }
+                }
             }
-            .padding(.top, 4)
+            if model.mic == .denied {
+                Text("Micro refusé : active FlowScribe dans Réglages → Micro, puis relance.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if !model.accessibility {
-                Text("Après avoir activé l'Accessibilité dans les Réglages, relance FlowScribe.")
+                Text("Après avoir activé l'Accessibilité, relance FlowScribe.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
