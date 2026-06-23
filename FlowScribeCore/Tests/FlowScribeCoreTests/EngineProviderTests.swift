@@ -23,4 +23,18 @@ final class EngineProviderTests: XCTestCase {
         let e = EngineProvider.openAI.makeEngine(apiKey: "sk", transport: MockTransport())
         XCTAssertEqual(e?.id, CloudEngineConfig.openAI.id)
     }
+
+    func test_models_perProvider() {
+        XCTAssertEqual(EngineProvider.elevenLabs.models.map(\.id), ["scribe_v2"])
+        XCTAssertEqual(EngineProvider.mistral.models.map(\.id), ["voxtral-mini-latest"])
+        XCTAssertEqual(EngineProvider.openAI.models.map(\.id),
+                       ["gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1"])
+        XCTAssertEqual(EngineProvider.openAI.defaultModelId, "gpt-4o-transcribe")
+        XCTAssertEqual(EngineProvider.appleLocal.models.count, 1)
+    }
+
+    func test_makeEngine_withModelId_buildsCloudEngine() {
+        let e = EngineProvider.openAI.makeEngine(apiKey: "sk", modelId: "whisper-1", transport: MockTransport())
+        XCTAssertEqual(e?.id, CloudEngineConfig.openAI.id)
+    }
 }

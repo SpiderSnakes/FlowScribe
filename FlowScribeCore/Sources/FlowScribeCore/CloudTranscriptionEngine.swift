@@ -20,15 +20,18 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
     private let apiKey: String
     private let transport: Transport
     private let boundary: String
+    private let modelId: String?
 
-    public init(config: CloudEngineConfig, apiKey: String, transport: Transport, boundary: String = "FlowScribeBoundary") {
-        self.config = config; self.apiKey = apiKey; self.transport = transport; self.boundary = boundary
+    public init(config: CloudEngineConfig, apiKey: String, transport: Transport, boundary: String = "FlowScribeBoundary", modelId: String? = nil) {
+        self.config = config; self.apiKey = apiKey; self.transport = transport; self.boundary = boundary; self.modelId = modelId
     }
+
+    private var effectiveModel: String { modelId ?? config.modelValue }
 
     public func transcribeFile(at url: URL, locale: Locale) async throws -> String {
         let audio = try Data(contentsOf: url)
         var form = MultipartFormData(boundary: boundary)
-        form.addField(name: config.modelField, value: config.modelValue)
+        form.addField(name: config.modelField, value: effectiveModel)
         form.addFile(name: "file", filename: url.lastPathComponent, contentType: "audio/wav", data: audio)
 
         var request = URLRequest(url: config.endpoint)
@@ -52,7 +55,7 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
     /// limitée au speech-to-text est validée). On distingue l'erreur d'auth de l'erreur de requête.
     public func validateKey() async -> KeyTestResult {
         var form = MultipartFormData(boundary: boundary)
-        form.addField(name: config.modelField, value: config.modelValue)
+        form.addField(name: config.modelField, value: effectiveModel)
 
         var request = URLRequest(url: config.endpoint)
         request.httpMethod = "POST"

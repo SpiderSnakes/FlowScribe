@@ -67,4 +67,15 @@ final class CloudTranscriptionEngineTests: XCTestCase {
         XCTAssertFalse(r.ok)
         XCTAssertEqual(r.status, 403)
     }
+
+    func test_transcribeFile_usesModelOverride() async throws {
+        let mock = MockTransport(statusCode: 200, body: Data(#"{"text":"x"}"#.utf8))
+        let engine = CloudTranscriptionEngine(config: .openAI, apiKey: "k", transport: mock, modelId: "whisper-1")
+        let url = FileManager.default.temporaryDirectory.appending(path: "m.wav")
+        try Data("RIFF".utf8).write(to: url); defer { try? FileManager.default.removeItem(at: url) }
+        _ = try await engine.transcribeFile(at: url, locale: .current)
+        let body = String(decoding: mock.lastRequest?.httpBody ?? Data(), as: UTF8.self)
+        XCTAssertTrue(body.contains("whisper-1"))
+        XCTAssertFalse(body.contains("gpt-4o-transcribe"))
+    }
 }
