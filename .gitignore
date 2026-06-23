@@ -50,3 +50,7 @@ FlowScribe.xcodeproj/
 # Outils locaux (état plugins, hors projet)
 .memsearch/
 .superpowers/
+
+# Captures déposées à la racine (hors dépôt)
+/Capture d’écran*
+*.heic
