@@ -11,8 +11,13 @@ struct FlowScribeApp: App {
             VStack(spacing: 16) {
                 Text("FlowScribe").font(.title2.bold())
                 Text("Appuie sur ⌥Espace pour dicter.").foregroundStyle(.secondary)
-                Divider()
-                PermissionsView(model: permissions)
+                if permissions.allGranted {
+                    Label("Autorisations OK", systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(.green).font(.caption)
+                } else {
+                    Divider()
+                    PermissionsView(model: permissions)
+                }
             }
             .padding(20)
             .frame(width: 380)
