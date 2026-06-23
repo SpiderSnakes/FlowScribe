@@ -38,6 +38,7 @@ struct SettingsView: View {
                     }
                 }
                 Button("Enregistrer les clés") { saveAllKeys() }
+                    .buttonStyle(.glassProminent)
             }
 
             Section("Langue") {
@@ -60,6 +61,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .buttonStyle(.glass)
         .frame(width: 470, height: 540)
         .onAppear {
             for p in cloudProviders { if let k = p.secretKey { keyDrafts[k] = settings.apiKey(for: p) } }

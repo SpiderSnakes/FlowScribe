@@ -14,7 +14,7 @@ struct HUDView: View {
                 .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
+        .glassEffect(.regular, in: .capsule)
     }
     private var label: String {
         switch state {
@@ -35,7 +35,7 @@ struct ResultHUDView: View {
                 .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
+        .glassEffect(.regular, in: .capsule)
     }
 }
 

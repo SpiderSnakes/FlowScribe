@@ -46,6 +46,7 @@ struct PermissionsView: View {
             PermissionRow(label: "Reconnaissance vocale", ok: model.speech == .granted)
             PermissionRow(label: "Accessibilité (collage)", ok: model.accessibility)
             Button("Demander les autorisations") { Task { await model.requestAll() } }
+                .buttonStyle(.glassProminent)
                 .padding(.top, 4)
             HStack {
                 if model.mic != .granted {
@@ -55,6 +56,7 @@ struct PermissionsView: View {
                     Button("Réglages Accessibilité") { Permissions.openAccessibilitySettings() }
                 }
             }
+            .buttonStyle(.glass)
             if model.mic == .denied {
                 Text("Micro refusé : active FlowScribe dans Réglages → Micro, puis relance.")
                     .font(.caption).foregroundStyle(.secondary)
