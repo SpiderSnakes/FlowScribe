@@ -45,4 +45,15 @@ final class TranscriptionServiceTests: XCTestCase {
         let out = await service.transcribe(fileAt: URL(filePath: "/tmp/x.caf"), locale: .current)
         XCTAssertEqual(out, .failed)
     }
+
+    func test_appliesPostCorrection_forSucceedingEngine() async {
+        let store = InMemoryCorrectionProfileStore()
+        store.add(CorrectionRule(heard: "doi", replacement: "Dokploy"), for: "p")
+        let service = TranscriptionService(
+            primary: MockEngine(id: "p", result: "On déploie Doi ce soir"),
+            fallback: MockEngine(id: "apple", result: "x"),
+            postCorrector: PostCorrector(store: store))
+        let out = await service.transcribe(fileAt: URL(filePath: "/tmp/x.caf"), locale: .current)
+        XCTAssertEqual(out, .success(text: "On déploie Dokploy ce soir", engineId: "p", usedFallback: false))
+    }
 }
