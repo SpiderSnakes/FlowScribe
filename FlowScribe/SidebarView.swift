@@ -17,6 +17,7 @@ struct SidebarView: View {
             Label(s.title, systemImage: s.icon)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 10).padding(.vertical, 8)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(section == s ? Theme.accent.opacity(0.22) : Color.clear,
