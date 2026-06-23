@@ -22,6 +22,10 @@ final class SettingsStore {
     var cleanupEnabled: Bool {
         didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); onChange?() }
     }
+    /// Rétention de l'historique en jours (0 = illimité).
+    var retentionDays: Int {
+        didSet { defaults.set(retentionDays, forKey: "retentionDays") }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -30,6 +34,7 @@ final class SettingsStore {
         self.localeIdentifier = defaults.string(forKey: "localeIdentifier") ?? "fr-FR"
         self.musicControlEnabled = defaults.bool(forKey: "musicControlEnabled")
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
+        self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
     }
 
     func apiKey(for provider: EngineProvider) -> String {

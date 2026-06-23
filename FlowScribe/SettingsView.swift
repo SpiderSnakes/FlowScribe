@@ -54,6 +54,11 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Rétention de l'historique") {
+                Stepper("Conserver \(settings.retentionDays) jour(s) — 0 = illimité",
+                        value: $settings.retentionDays, in: 0...365)
+            }
+
             Section("Autorisations") {
                 permissionRow("Micro", ok: permissions.mic == .granted)
                 permissionRow("Reconnaissance vocale", ok: permissions.speech == .granted)

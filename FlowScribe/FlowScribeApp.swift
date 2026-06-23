@@ -7,14 +7,18 @@ struct FlowScribeApp: App {
     @State private var settings = SettingsStore(secrets: KeychainSecretStore())
     @State private var glossary = JSONGlossaryStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/glossary.json"))
     @State private var profiles = JSONCorrectionProfileStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/corrections.json"))
+    @State private var history = HistoryModel(
+        store: JSONHistoryStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/history.json")),
+        recordingsDir: URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings"))
     @State private var controller: DictationController?
     @State private var bridge: HotkeyBridge?
 
     var body: some Scene {
         WindowGroup("FlowScribe") {
             RootView(settings: settings, permissions: permissions,
-                     glossary: glossary, profiles: profiles,
-                     onToggleRecord: { toggleRecord() })
+                     glossary: glossary, profiles: profiles, history: history,
+                     onToggleRecord: { toggleRecord() },
+                     onRetranscribe: { r, p in await retranscribe(r, with: p) })
                 .frame(minWidth: 720, minHeight: 480)
                 .task { await setup() }
         }
@@ -28,6 +32,20 @@ struct FlowScribeApp: App {
         guard let c = controller else { return }
         c.pressDown()
         Task { await c.pressUp(kind: .tap) }
+    }
+
+    @MainActor
+    private func retranscribe(_ r: TranscriptionRecord, with provider: EngineProvider) async {
+        let url = history.audioURL(r.audioFileName)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let apple = AppleSpeechEngine()
+        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider), transport: URLSessionTransport()) ?? apple
+        let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
+        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: r.locale))
+        if case let .success(text, engineId, _) = outcome {
+            history.add(TranscriptionRecord(id: UUID(), date: Date(), text: text, engineId: engineId,
+                                            locale: r.locale, audioFileName: r.audioFileName, duration: r.duration))
+        }
     }
 
     @MainActor
@@ -48,8 +66,10 @@ struct FlowScribeApp: App {
             locale: Locale(identifier: settings.localeIdentifier)
         )
         Self.applyOptions(to: c, settings: settings)
+        c.onRecord = { [history] r in history.add(r) }
         controller = c
         bridge = HotkeyBridge(controller: c, hud: hud)
+        history.purge(maxAgeDays: settings.retentionDays)
         settings.onChange = { [weak c, settings, profiles] in
             guard let c else { return }
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
