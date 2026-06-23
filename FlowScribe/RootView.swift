@@ -9,6 +9,7 @@ struct RootView: View {
     let history: HistoryModel
     let onToggleRecord: () -> Void
     let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
+    let onTranscribeFile: (URL, EngineProvider, String) async -> Bool
 
     @State private var section: AppSection = .accueil
 
@@ -21,6 +22,8 @@ struct RootView: View {
             case .accueil:
                 HomeView(settings: settings, permissions: permissions, history: history,
                          onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe)
+            case .fichiers:
+                FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
             case .vocabulaire:
                 VocabularyView(glossary: glossary, profiles: profiles, settings: settings)
             case .reglages:

@@ -33,6 +33,16 @@ final class HistoryModel {
         records = store.records
     }
 
+    /// Copie un fichier audio externe dans le dossier `recordings` sous un nom unique, renvoie ce nom.
+    func importAudio(from source: URL, id: UUID) throws -> String {
+        let name = FileImporter.importedFileName(for: source, id: id)
+        let dest = audioURL(name)
+        try FileManager.default.createDirectory(at: recordingsDir, withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: dest.path) { try FileManager.default.removeItem(at: dest) }
+        try FileManager.default.copyItem(at: source, to: dest)
+        return name
+    }
+
     func audioURL(_ name: String) -> URL { recordingsDir.appending(path: name) }
     func audioExists(_ name: String) -> Bool { FileManager.default.fileExists(atPath: audioURL(name).path) }
     private func deleteAudio(_ name: String) { try? FileManager.default.removeItem(at: audioURL(name)) }

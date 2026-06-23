@@ -18,7 +18,8 @@ struct FlowScribeApp: App {
             RootView(settings: settings, permissions: permissions,
                      glossary: glossary, profiles: profiles, history: history,
                      onToggleRecord: { toggleRecord() },
-                     onRetranscribe: { r, p in await retranscribe(r, with: p) })
+                     onRetranscribe: { r, p in await retranscribe(r, with: p) },
+                     onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) })
                 .frame(minWidth: 720, minHeight: 480)
                 .task { await setup() }
         }
@@ -48,6 +49,24 @@ struct FlowScribeApp: App {
             history.add(TranscriptionRecord(id: UUID(), date: Date(), text: text, engineId: engineId,
                                             locale: r.locale, audioFileName: r.audioFileName, duration: r.duration))
         }
+    }
+
+    @MainActor
+    private func transcribeFile(_ source: URL, with provider: EngineProvider, modelId: String) async -> Bool {
+        let id = UUID()
+        guard let name = try? history.importAudio(from: source, id: id) else { return false }
+        let url = history.audioURL(name)
+        let duration = await FileTranscription.duration(of: url)
+        let apple = AppleSpeechEngine()
+        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider),
+                                          modelId: modelId,
+                                          transport: URLSessionTransport()) ?? apple
+        let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
+        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: settings.localeIdentifier))
+        guard case let .success(text, engineId, _) = outcome else { return false }
+        history.add(TranscriptionRecord(id: id, date: Date(), text: text, engineId: engineId,
+                                        locale: settings.localeIdentifier, audioFileName: name, duration: duration))
+        return true
     }
 
     @MainActor
