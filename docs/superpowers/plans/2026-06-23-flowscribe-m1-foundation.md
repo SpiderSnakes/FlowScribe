@@ -72,7 +72,7 @@ Expected: chemin affiché, ou installation réussie.
 - [ ] **Step 2: Écrire `FlowScribeCore/Package.swift`**
 
 ```swift
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
@@ -87,7 +87,7 @@ let package = Package(
     ]
 )
 ```
-> Si le toolchain ne connaît pas `.v26`, remplacer par `.macOS(.v15)` et garder l'API macOS 26 derrière `@available(macOS 26.0, *)`.
+> `.v26` exige `swift-tools-version: 6.2` (introduit là) ; le toolchain Swift 6.4 le fournit. Si jamais indisponible, replier sur `.macOS(.v15)` + `@available(macOS 26.0, *)`.
 
 - [ ] **Step 3: Écrire un modèle minimal `Models.swift`**
 
@@ -162,7 +162,8 @@ settings:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Developer ID Application"
     DEVELOPMENT_TEAM: "Y8XLVL2758"
     ARCHS: arm64
 packages:

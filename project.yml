@@ -1,0 +1,42 @@
+name: FlowScribe
+options:
+  bundleIdPrefix: cloud.spidersnake
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Developer ID Application"
+    DEVELOPMENT_TEAM: "Y8XLVL2758"
+    ARCHS: arm64
+packages:
+  FlowScribeCore:
+    path: FlowScribeCore
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: "2.0.0"
+targets:
+  FlowScribe:
+    type: application
+    platform: macOS
+    sources:
+      - path: FlowScribe
+    dependencies:
+      - package: FlowScribeCore
+      - package: KeyboardShortcuts
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cloud.spidersnake.FlowScribe
+        ENABLE_HARDENED_RUNTIME: YES
+        INFOPLIST_KEY_LSUIElement: NO
+    info:
+      path: FlowScribe/Info.plist
+      properties:
+        CFBundleDisplayName: FlowScribe
+        LSMinimumSystemVersion: "26.0"
+        NSMicrophoneUsageDescription: "FlowScribe a besoin du micro pour transcrire votre voix."
+        NSSpeechRecognitionUsageDescription: "FlowScribe utilise la reconnaissance vocale locale de macOS pour transcrire vos dictées."
