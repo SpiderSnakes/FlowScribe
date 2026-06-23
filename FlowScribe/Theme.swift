@@ -11,4 +11,8 @@ enum Theme {
         startPoint: .topLeading, endPoint: .bottomTrailing)
 
     static let glowColor = sky
+    /// Bordure fine (style Raycast) sur le verre.
+    static let hairline = Color.white.opacity(0.14)
+    /// Teinte sombre légère pour garder le HUD lisible sur fond clair, sans casser la transparence.
+    static let glassTint = deepNight.opacity(0.28)
 }
