@@ -10,4 +10,16 @@ final class EngineProviderTests: XCTestCase {
         XCTAssertEqual(CloudEngineConfig.mistral.authValuePrefix, "Bearer ")
         XCTAssertTrue(CloudEngineConfig.openAI.pricePerMinuteUSD > 0)
     }
+
+    func test_appleProvider_buildsLocalEngine_withoutKey() {
+        let engine = EngineProvider.appleLocal.makeEngine(apiKey: nil, transport: MockTransport())
+        XCTAssertEqual(engine?.id, "apple.local")
+        XCTAssertNil(EngineProvider.appleLocal.secretKey)
+    }
+
+    func test_cloudProvider_requiresKey() {
+        XCTAssertNil(EngineProvider.openAI.makeEngine(apiKey: nil, transport: MockTransport()))
+        let e = EngineProvider.openAI.makeEngine(apiKey: "sk", transport: MockTransport())
+        XCTAssertEqual(e?.id, CloudEngineConfig.openAI.id)
+    }
 }
