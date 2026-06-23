@@ -8,23 +8,33 @@ public enum TranscriptionOutcome: Equatable, Sendable {
 public final class TranscriptionService: Sendable {
     private let primary: TranscriptionEngine
     private let fallback: TranscriptionEngine
-    public init(primary: TranscriptionEngine, fallback: TranscriptionEngine) {
+    private let timeoutSeconds: Double
+
+    public init(primary: TranscriptionEngine, fallback: TranscriptionEngine, timeoutSeconds: Double = 30) {
         self.primary = primary
         self.fallback = fallback
+        self.timeoutSeconds = timeoutSeconds
     }
 
     public func transcribe(fileAt url: URL, locale: Locale) async -> TranscriptionOutcome {
-        do {
-            let text = try await primary.transcribeFile(at: url, locale: locale)
+        if let text = await tryEngine(primary, url: url, locale: locale) {
             return .success(text: text, engineId: primary.id, usedFallback: false)
-        } catch {
-            // Repli : on ne perd jamais l'audio, on retente en local sur le fichier sauvegardé.
-            do {
-                let text = try await fallback.transcribeFile(at: url, locale: locale)
-                return .success(text: text, engineId: fallback.id, usedFallback: true)
-            } catch {
-                return .failed
+        }
+        // Repli (sauf si le repli est le même moteur que le primaire — évite de doubler le timeout).
+        if primary.id != fallback.id, let text = await tryEngine(fallback, url: url, locale: locale) {
+            return .success(text: text, engineId: fallback.id, usedFallback: true)
+        }
+        return .failed
+    }
+
+    /// Tente un moteur avec timeout ; renvoie nil si erreur ou délai dépassé.
+    private func tryEngine(_ engine: TranscriptionEngine, url: URL, locale: Locale) async -> String? {
+        do {
+            return try await withTimeout(seconds: timeoutSeconds) {
+                try await engine.transcribeFile(at: url, locale: locale)
             }
+        } catch {
+            return nil
         }
     }
 }
