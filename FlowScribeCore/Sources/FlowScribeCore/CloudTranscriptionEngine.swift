@@ -37,4 +37,17 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
         }
         return text
     }
+
+    /// Vérifie que la clé est valide via un GET authentifié léger (endpoint de validation).
+    public func validateKey() async -> Bool {
+        var request = URLRequest(url: config.validationEndpoint)
+        request.httpMethod = "GET"
+        request.setValue("\(config.authValuePrefix)\(apiKey)", forHTTPHeaderField: config.authHeaderName)
+        do {
+            let (_, response) = try await transport.send(request)
+            return (200..<300).contains(response.statusCode)
+        } catch {
+            return false
+        }
+    }
 }

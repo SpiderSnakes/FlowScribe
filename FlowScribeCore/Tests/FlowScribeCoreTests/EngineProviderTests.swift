@@ -9,6 +9,7 @@ final class EngineProviderTests: XCTestCase {
         XCTAssertEqual(CloudEngineConfig.elevenLabs.modelField, "model_id")
         XCTAssertEqual(CloudEngineConfig.mistral.authValuePrefix, "Bearer ")
         XCTAssertTrue(CloudEngineConfig.openAI.pricePerMinuteUSD > 0)
+        XCTAssertEqual(CloudEngineConfig.elevenLabs.modelValue, "scribe_v2")
     }
 
     func test_appleProvider_buildsLocalEngine_withoutKey() {

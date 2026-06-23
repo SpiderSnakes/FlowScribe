@@ -41,4 +41,21 @@ final class CloudTranscriptionEngineTests: XCTestCase {
         do { _ = try await engine.transcribeFile(at: url, locale: .current); XCTFail("devrait lever") }
         catch { /* attendu */ }
     }
+
+    func test_validateKey_buildsAuthorizedGet_andReturnsTrueOn200() async {
+        let mock = MockTransport(statusCode: 200)
+        let engine = CloudTranscriptionEngine(config: .elevenLabs, apiKey: "xi-1", transport: mock, boundary: "B")
+        let ok = await engine.validateKey()
+        XCTAssertTrue(ok)
+        let req = mock.lastRequest
+        XCTAssertEqual(req?.httpMethod, "GET")
+        XCTAssertEqual(req?.url, CloudEngineConfig.elevenLabs.validationEndpoint)
+        XCTAssertEqual(req?.value(forHTTPHeaderField: "xi-api-key"), "xi-1")
+    }
+
+    func test_validateKey_returnsFalseOn401() async {
+        let engine = CloudTranscriptionEngine(config: .openAI, apiKey: "bad", transport: MockTransport(statusCode: 401), boundary: "B")
+        let ok = await engine.validateKey()
+        XCTAssertFalse(ok)
+    }
 }

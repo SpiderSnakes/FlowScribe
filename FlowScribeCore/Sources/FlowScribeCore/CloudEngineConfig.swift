@@ -3,6 +3,7 @@ import Foundation
 public struct CloudEngineConfig: Sendable {
     public let id: String
     public let endpoint: URL
+    public let validationEndpoint: URL
     public let authHeaderName: String
     public let authValuePrefix: String
     public let modelField: String
@@ -14,6 +15,7 @@ public struct CloudEngineConfig: Sendable {
     public static let openAI = CloudEngineConfig(
         id: "openai.gpt-4o-transcribe",
         endpoint: URL(string: "https://api.openai.com/v1/audio/transcriptions")!,
+        validationEndpoint: URL(string: "https://api.openai.com/v1/models")!,
         authHeaderName: "Authorization", authValuePrefix: "Bearer ",
         modelField: "model", modelValue: "gpt-4o-transcribe",
         capabilities: EngineCapabilities(supportsStreaming: false, supportsKeyterms: false, isLocal: false),
@@ -22,6 +24,7 @@ public struct CloudEngineConfig: Sendable {
     public static let mistral = CloudEngineConfig(
         id: "mistral.voxtral",
         endpoint: URL(string: "https://api.mistral.ai/v1/audio/transcriptions")!,
+        validationEndpoint: URL(string: "https://api.mistral.ai/v1/models")!,
         authHeaderName: "Authorization", authValuePrefix: "Bearer ",
         modelField: "model", modelValue: "voxtral-mini-latest",
         capabilities: EngineCapabilities(supportsStreaming: false, supportsKeyterms: false, isLocal: false),
@@ -30,8 +33,9 @@ public struct CloudEngineConfig: Sendable {
     public static let elevenLabs = CloudEngineConfig(
         id: "elevenlabs.scribe",
         endpoint: URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!,
+        validationEndpoint: URL(string: "https://api.elevenlabs.io/v1/models")!,
         authHeaderName: "xi-api-key", authValuePrefix: "",
-        modelField: "model_id", modelValue: "scribe_v1",
+        modelField: "model_id", modelValue: "scribe_v2",
         capabilities: EngineCapabilities(supportsStreaming: false, supportsKeyterms: true, isLocal: false),
         pricePerMinuteUSD: 0.0066)
 }
