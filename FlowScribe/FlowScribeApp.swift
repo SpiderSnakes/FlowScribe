@@ -12,35 +12,22 @@ struct FlowScribeApp: App {
 
     var body: some Scene {
         WindowGroup("FlowScribe") {
-            VStack(spacing: 16) {
-                Text("FlowScribe").font(.title2.bold())
-                Text("Appuie sur ⌥Espace pour dicter.").foregroundStyle(.secondary)
-                if !permissions.allGranted {
-                    Divider()
-                    PermissionsView(model: permissions)
-                    Text("Réglages (⌘,) pour les clés, le moteur, le glossaire et la calibration.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .padding(20)
-            .frame(width: 380)
-            .tint(Theme.accent)
-            .task { await setup() }
-        }
-        Settings {
-            TabView {
-                SettingsView(settings: settings, permissions: permissions)
-                    .tabItem { Label("Réglages", systemImage: "gearshape") }
-                GlossaryView(glossary: glossary, profiles: profiles)
-                    .tabItem { Label("Glossaire", systemImage: "text.book.closed") }
-                CalibrationView(glossary: glossary, profiles: profiles, settings: settings)
-                    .tabItem { Label("Calibration", systemImage: "waveform") }
-            }
+            RootView(settings: settings, permissions: permissions,
+                     glossary: glossary, profiles: profiles,
+                     onToggleRecord: { toggleRecord() })
+                .frame(minWidth: 720, minHeight: 480)
+                .task { await setup() }
         }
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
-            SettingsLink { Text("Réglages…") }
             Button("Quitter") { NSApplication.shared.terminate(nil) }
         }
+    }
+
+    @MainActor
+    private func toggleRecord() {
+        guard let c = controller else { return }
+        c.pressDown()
+        Task { await c.pressUp(kind: .tap) }
     }
 
     @MainActor

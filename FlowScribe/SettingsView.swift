@@ -71,7 +71,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .buttonStyle(.glass)
-        .frame(width: 470, height: 540)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             for p in cloudProviders { if let k = p.secretKey { keyDrafts[k] = settings.apiKey(for: p) } }
             permissions.refresh()

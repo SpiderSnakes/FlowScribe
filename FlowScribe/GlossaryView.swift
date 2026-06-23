@@ -50,7 +50,7 @@ struct GlossaryView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 480)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { terms = glossary.terms }
     }
 
