@@ -6,7 +6,7 @@ public struct EngineModel: Equatable, Sendable {
     public init(id: String, displayName: String) { self.id = id; self.displayName = displayName }
 }
 
-public enum EngineProvider: String, CaseIterable, Sendable {
+public enum EngineProvider: String, CaseIterable, Sendable, Codable {
     case appleLocal, elevenLabs, mistral, openAI
 
     public var displayName: String {

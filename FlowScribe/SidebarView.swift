@@ -5,7 +5,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach([AppSection.accueil, .fichiers, .vocabulaire]) { row($0) }
+            ForEach([AppSection.accueil, .modes, .fichiers, .vocabulaire]) { row($0) }
             Spacer()
             row(.reglages)
         }

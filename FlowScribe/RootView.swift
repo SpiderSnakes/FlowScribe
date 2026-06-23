@@ -7,9 +7,11 @@ struct RootView: View {
     let glossary: GlossaryStore
     let profiles: CorrectionProfileStore
     let history: HistoryModel
+    let modes: ModesModel
     let onToggleRecord: () -> Void
     let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
     let onTranscribeFile: (URL, EngineProvider, String) async -> Bool
+    let onActivateMode: (Mode) -> Void
 
     @State private var section: AppSection = .accueil
     @State private var micName = "Micro système"
@@ -47,7 +49,10 @@ struct RootView: View {
         switch section {
         case .accueil:
             HomeView(settings: settings, permissions: permissions, history: history,
-                     onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe)
+                     modes: modes, onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe,
+                     onActivateMode: onActivateMode)
+        case .modes:
+            ModesView(modes: modes, settings: settings, onActivate: onActivateMode)
         case .fichiers:
             FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
         case .vocabulaire:

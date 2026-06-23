@@ -23,8 +23,9 @@ public struct AICleanupService: Sendable {
         self.config = config; self.apiKey = apiKey; self.transport = transport
     }
 
-    public func cleanup(_ text: String) async throws -> String {
-        let system = "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
+    /// Nettoie/reformule le texte. `instruction` permet un prompt propre au mode (nil = prompt par défaut).
+    public func cleanup(_ text: String, instruction: String? = nil) async throws -> String {
+        let system = instruction ?? "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
         let payload: [String: Any] = [
             "model": config.model,
             "messages": [

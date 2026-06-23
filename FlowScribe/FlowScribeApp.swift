@@ -10,6 +10,8 @@ struct FlowScribeApp: App {
     @State private var history = HistoryModel(
         store: JSONHistoryStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/history.json")),
         recordingsDir: URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings"))
+    @State private var modes = ModesModel(
+        store: JSONModeStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/modes.json")))
     @State private var controller: DictationController?
     @State private var bridge: HotkeyBridge?
 
@@ -18,10 +20,11 @@ struct FlowScribeApp: App {
             Group {
                 if settings.hasSeenOnboarding {
                     RootView(settings: settings, permissions: permissions,
-                             glossary: glossary, profiles: profiles, history: history,
+                             glossary: glossary, profiles: profiles, history: history, modes: modes,
                              onToggleRecord: { toggleRecord() },
                              onRetranscribe: { r, p in await retranscribe(r, with: p) },
-                             onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) })
+                             onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) },
+                             onActivateMode: { applyMode($0) })
                 } else {
                     OnboardingView(permissions: permissions) { settings.hasSeenOnboarding = true }
                 }
@@ -76,10 +79,31 @@ struct FlowScribeApp: App {
         return true
     }
 
+    /// Active un mode : applique ses valeurs au SettingsStore (qui pilote le pipeline).
+    @MainActor
+    private func applyMode(_ mode: Mode) {
+        settings.defaultProvider = mode.provider
+        settings.setModel(mode.modelId, for: mode.provider)
+        settings.localeIdentifier = mode.localeIdentifier
+        settings.musicControlEnabled = mode.pauseMusic
+        settings.cleanupEnabled = (mode.cleanupPrompt != nil)
+        if let prompt = mode.cleanupPrompt { settings.cleanupPrompt = prompt }
+        modes.setActive(mode.id)
+    }
+
     @MainActor
     private func setup() async {
         permissions.refresh()   // l'onboarding pilote les demandes ; pas d'invite groupée au lancement
         guard controller == nil else { return }
+        // Seed : un mode « Par défaut » dérivé des réglages courants à la 1re exécution.
+        if modes.modes.isEmpty {
+            let m = Mode(name: "Par défaut", provider: settings.defaultProvider,
+                         modelId: settings.selectedModelId(for: settings.defaultProvider),
+                         localeIdentifier: settings.localeIdentifier, pauseMusic: settings.musicControlEnabled,
+                         cleanupPrompt: settings.cleanupEnabled ? settings.cleanupPrompt : nil)
+            modes.upsert(m)
+            modes.setActive(m.id)
+        }
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let recorder = MicrophoneRecorder(outputDirectory: dir)
         recorder.preferredDeviceUID = settings.selectedMicrophoneUID
@@ -142,15 +166,16 @@ struct FlowScribeApp: App {
     private static func makeCleanup(_ settings: SettingsStore) -> ((String) async -> String)? {
         guard settings.cleanupEnabled else { return nil }
         let transport = URLSessionTransport()
+        let prompt = settings.cleanupPrompt
         let mistral = settings.apiKey(for: .mistral)
         if !mistral.isEmpty {
             let svc = AICleanupService(config: .mistral, apiKey: mistral, transport: transport)
-            return { (try? await svc.cleanup($0)) ?? $0 }
+            return { (try? await svc.cleanup($0, instruction: prompt)) ?? $0 }
         }
         let openai = settings.apiKey(for: .openAI)
         if !openai.isEmpty {
             let svc = AICleanupService(config: .openAI, apiKey: openai, transport: transport)
-            return { (try? await svc.cleanup($0)) ?? $0 }
+            return { (try? await svc.cleanup($0, instruction: prompt)) ?? $0 }
         }
         return nil
     }

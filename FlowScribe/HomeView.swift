@@ -5,8 +5,10 @@ struct HomeView: View {
     let settings: SettingsStore
     let permissions: PermissionsModel
     let history: HistoryModel
+    let modes: ModesModel
     let onToggleRecord: () -> Void
     let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
+    let onActivateMode: (Mode) -> Void
 
     @State private var query = ""
 
@@ -27,20 +29,13 @@ struct HomeView: View {
                 }
                 .buttonStyle(.glassProminent).clipShape(Circle())
                 Menu {
-                    ForEach(EngineProvider.allCases, id: \.self) { p in
-                        Menu(p.displayName) {
-                            ForEach(p.models, id: \.id) { m in
-                                Button(m.displayName) {
-                                    settings.defaultProvider = p
-                                    settings.setModel(m.id, for: p)
-                                }
-                            }
+                    ForEach(modes.modes) { m in
+                        Button { onActivateMode(m) } label: {
+                            Label(m.name, systemImage: m.id == modes.activeModeId ? "checkmark" : "square.stack.3d.up")
                         }
                     }
                 } label: {
-                    let p = settings.defaultProvider
-                    let model = p.models.first { $0.id == settings.selectedModelId(for: p) }
-                    Label("\(p.displayName) · \(model?.displayName ?? "")", systemImage: "cpu")
+                    Label("Mode : \(modes.activeMode?.name ?? "—")", systemImage: "square.stack.3d.up")
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()

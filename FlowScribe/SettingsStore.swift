@@ -35,6 +35,11 @@ final class SettingsStore {
     var cleanupEnabled: Bool {
         didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); onChange?() }
     }
+    /// Prompt de reformulation IA (alimenté par le mode actif).
+    var cleanupPrompt: String {
+        didSet { defaults.set(cleanupPrompt, forKey: "cleanupPrompt"); onChange?() }
+    }
+    static let defaultCleanupPrompt = "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
     /// Rétention de l'historique en jours (0 = illimité).
     var retentionDays: Int {
         didSet { defaults.set(retentionDays, forKey: "retentionDays") }
@@ -67,6 +72,7 @@ final class SettingsStore {
         self.localeIdentifier = defaults.string(forKey: "localeIdentifier") ?? "fr-FR"
         self.musicControlEnabled = defaults.bool(forKey: "musicControlEnabled")
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
+        self.cleanupPrompt = defaults.string(forKey: "cleanupPrompt") ?? Self.defaultCleanupPrompt
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
         self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
         self.recordingWindowStyle = RecordingWindowStyle(rawValue: defaults.string(forKey: "recordingWindowStyle") ?? "") ?? .classic
