@@ -1,8 +1,9 @@
 import SwiftUI
 import AppKit
 
-/// Accueil première ouverture : demande les permissions une par une, barre de
-/// progression qui avance. Inspiré de SuperWhisper (cf. docs/design-references).
+/// Accueil première ouverture, plein écran (pas de fenêtre dans la fenêtre) :
+/// demande les permissions une par une, barre de progression qui avance.
+/// Inspiré de SuperWhisper (cf. docs/design-references).
 struct OnboardingView: View {
     let permissions: PermissionsModel
     var onDone: () -> Void
@@ -13,35 +14,33 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        ZStack {
-            AuroraBackground()
-            card
-                .frame(width: 420)
-                .padding(24)
-                .background(Theme.glassTint, in: RoundedRectangle(cornerRadius: 20))
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(Theme.hairline, lineWidth: 1))
-                .shadow(color: .black.opacity(0.45), radius: 30, y: 12)
-                .animation(.snappy(duration: 0.25), value: grantedCount)
+        VStack(spacing: 0) {
+            ProgressBar(progress: Double(grantedCount) / 3.0)   // pleine largeur, tout en haut
+            Spacer(minLength: 0)
+            content.frame(maxWidth: 480)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(VisualEffectBackground(material: .sidebar).ignoresSafeArea())
+        .animation(.snappy(duration: 0.25), value: grantedCount)
         .onAppear { permissions.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             permissions.refresh()
         }
     }
 
-    private var card: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            ProgressBar(progress: Double(grantedCount) / 3.0)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Configurons les autorisations")
-                    .font(.system(size: 22, weight: .bold))
-                Text("Tout reste en local — la confidentialité d'abord.")
-                    .font(.callout).foregroundStyle(Theme.sky)
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Bienvenue dans FlowScribe")
+                    .font(.system(size: 28, weight: .bold))
+                Text("Configurons les autorisations — tout reste en local, la confidentialité d'abord.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            VStack(spacing: 14) {
+            VStack(spacing: 16) {
                 row(icon: "mic.fill", title: "Micro",
                     desc: "Capter l'audio à transcrire. Utilisé seulement pendant la dictée.",
                     granted: permissions.mic == .granted, locked: false,
@@ -58,12 +57,13 @@ struct OnboardingView: View {
 
             if !permissions.accessibility && permissions.speech == .granted {
                 Button("Ouvrir les Réglages d'Accessibilité") { Permissions.openAccessibilitySettings() }
-                    .buttonStyle(.glass).font(.caption)
+                    .buttonStyle(.glass).font(.callout)
             }
 
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Button(action: onDone) {
-                    Text("Commencer à utiliser FlowScribe").frame(maxWidth: .infinity)
+                    Text("Commencer à utiliser FlowScribe")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)
@@ -71,32 +71,35 @@ struct OnboardingView: View {
 
                 if !permissions.allGranted {
                     Button("Ignorer pour l'instant", action: onDone)
-                        .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
+                        .buttonStyle(.plain).font(.callout).foregroundStyle(.secondary)
                 }
             }
+            .padding(.top, 4)
         }
     }
 
     private func row(icon: String, title: String, desc: String,
                      granted: Bool, locked: Bool, action: @escaping () -> Void) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundStyle(granted ? Theme.sky : .secondary)
-                .frame(width: 24)
+                .font(.system(size: 20))
+                .foregroundStyle(granted ? Theme.accent : .secondary)
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold))
-                Text(desc).font(.caption).foregroundStyle(.secondary)
+                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(desc).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
             if granted {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green).font(.system(size: 18))
+                    .foregroundStyle(.green).font(.system(size: 20))
             } else {
                 Button("Autoriser", action: action).buttonStyle(.glass).disabled(locked)
             }
         }
+        .padding(14)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
         .opacity(locked ? 0.45 : 1)
         .animation(.snappy(duration: 0.25), value: granted)
         .animation(.snappy(duration: 0.25), value: locked)
@@ -108,12 +111,12 @@ private struct ProgressBar: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.12))
-                Capsule().fill(Theme.sky)
-                    .frame(width: max(5, geo.size.width * progress))
+                Rectangle().fill(Color.primary.opacity(0.08))
+                Rectangle().fill(Theme.accent)
+                    .frame(width: max(0, geo.size.width * progress))
             }
         }
-        .frame(height: 5)
+        .frame(height: 4)
         .animation(.snappy(duration: 0.3), value: progress)
     }
 }

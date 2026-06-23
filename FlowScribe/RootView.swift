@@ -19,7 +19,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             ZStack {
-                AuroraBackground()
+                VisualEffectBackground(material: .sidebar).ignoresSafeArea()
                 detailContent
             }
         }

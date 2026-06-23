@@ -21,7 +21,7 @@ struct SidebarView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(section == s ? Theme.accent.opacity(0.22) : Color.clear,
+        .background(section == s ? Theme.accent.opacity(0.16) : Color.clear,
                     in: RoundedRectangle(cornerRadius: 8))
         .foregroundStyle(section == s ? Theme.accent : .primary)
     }
