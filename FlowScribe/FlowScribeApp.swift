@@ -23,6 +23,7 @@ struct FlowScribeApp: App {
                 .frame(minWidth: 720, minHeight: 480)
                 .task { await setup() }
         }
+        .windowStyle(.hiddenTitleBar)   // pas de grand bandeau « FlowScribe » ; pastilles superposées
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
             Button("Quitter") { NSApplication.shared.terminate(nil) }
         }
@@ -90,6 +91,7 @@ struct FlowScribeApp: App {
         c.onRecord = { [history] r in history.add(r) }
         c.onStateChange = { [hud] s in if s != .idle { hud.show(state: s) } }
         c.onFinish = { [hud] outcome in hud.showResult(Self.resultMessage(for: outcome)) }
+        c.onCancel = { [hud] in hud.hide() }
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)

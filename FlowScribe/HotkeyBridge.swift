@@ -15,10 +15,17 @@ final class HotkeyBridge {
     private let holdThreshold: TimeInterval = 0.25
     private var pressDownAt: Date?
 
+    private var localEscMonitor: Any?
+    private var globalEscMonitor: Any?
+    private let escapeKeyCode: UInt16 = 53
+
     init(controller: DictationController) {
         self.controller = controller
         register()
+        registerEscape()
     }
+    // Pas de deinit : HotkeyBridge vit toute la durée de l'app ; les monitors NSEvent
+    // sont libérés à la terminaison du process.
 
     private func register() {
         KeyboardShortcuts.onKeyDown(for: .toggleDictation) { [weak self] in
@@ -30,6 +37,19 @@ final class HotkeyBridge {
             let duration = self.pressDownAt.map { Date().timeIntervalSince($0) } ?? 0
             let kind = PressClassifier.classify(pressDuration: duration, holdThreshold: self.holdThreshold)
             Task { await self.controller.pressUp(kind: kind) }
+        }
+    }
+
+    /// Échap annule la dictée en cours (local : consomme l'événement ; global : observe).
+    private func registerEscape() {
+        localEscMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return event }
+            self.controller.cancel()
+            return nil   // consomme l'Échap (n'annule pas une feuille/un champ par-dessus)
+        }
+        globalEscMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return }
+            self.controller.cancel()
         }
     }
 }

@@ -108,4 +108,44 @@ final class DictationControllerTests: XCTestCase {
         c.pressDown(); await c.pressUp(kind: .hold)
         XCTAssertEqual(states, [.recording, .transcribing, .idle])
     }
+
+    func test_cancel_duringRecording_idle_noDelivery_firesOnCancel() {
+        let (c, _, out) = makeController()
+        var cancelled = false
+        c.onCancel = { cancelled = true }
+        c.pressDown()
+        XCTAssertEqual(c.state, .recording)
+        c.cancel()
+        XCTAssertEqual(c.state, .idle)
+        XCTAssertTrue(cancelled)
+        XCTAssertEqual(out.delivered, [])
+    }
+
+    func test_cancel_resumesMedia() {
+        let (c, _, _) = makeController()
+        let player = SpyPlayer(playing: [.spotify])
+        c.mediaController = MediaController(player: player, enabled: true)
+        c.pressDown()
+        XCTAssertEqual(player.paused, [.spotify])
+        c.cancel()
+        XCTAssertEqual(player.resumed, [.spotify])
+    }
+
+    func test_cancel_fromIdle_isNoOp() {
+        let (c, _, _) = makeController()
+        var cancelled = false
+        c.onCancel = { cancelled = true }
+        c.cancel()
+        XCTAssertEqual(c.state, .idle)
+        XCTAssertFalse(cancelled)
+    }
+
+    func test_cancel_duringRecording_doesNotFireOnFinish() {
+        let (c, _, _) = makeController()
+        var finished = false
+        c.onFinish = { _ in finished = true }
+        c.pressDown()
+        c.cancel()
+        XCTAssertFalse(finished)
+    }
 }

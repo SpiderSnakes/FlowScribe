@@ -17,6 +17,8 @@ public final class DictationController {
     public var onRecord: ((TranscriptionRecord) -> Void)?
     /// Notifié à chaque changement d'état — pilote le HUD quel que soit le déclencheur (hotkey ou bouton).
     public var onStateChange: ((DictationState) -> Void)?
+    /// Notifié quand une dictée est annulée (Échap) — l'UI masque le HUD sans toast de résultat.
+    public var onCancel: (() -> Void)?
 
     private let recorder: AudioRecorder
     private var service: TranscriptionService
@@ -24,6 +26,7 @@ public final class DictationController {
     private let output: TextOutput
 
     private var pressStartedRecording = false
+    private var transcriptionTask: Task<Void, Never>?
 
     public init(recorder: AudioRecorder, service: TranscriptionService, output: TextOutput, locale: Locale) {
         self.recorder = recorder
@@ -66,15 +69,37 @@ public final class DictationController {
         }
     }
 
+    /// Annule la dictée en cours (Échap) : ni transcription, ni collage. Idempotent depuis idle.
+    public func cancel() {
+        guard state != .idle else { return }
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+        if state == .recording {
+            Task { _ = await recorder.stop() }   // arrête le micro, jette l'audio
+        }
+        lastTranscript = nil
+        setState(.idle)
+        mediaController?.resumeAfterDictation()
+        onCancel?()
+    }
+
     private func finishRecording() async {
         guard state == .recording else { return }
         let recording = await recorder.stop()
         setState(.transcribing)
+        let task = Task { await self.runTranscription(recording: recording) }
+        transcriptionTask = task
+        await task.value
+    }
+
+    private func runTranscription(recording: AudioRecording) async {
         let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
+        if Task.isCancelled { return }   // annulée pendant la transcription → on jette
         switch outcome {
         case let .success(text, engineId, _):
             var finalText = text
             if let cleanup { finalText = await cleanup(finalText) }
+            if Task.isCancelled { return }
             lastTranscript = finalText
             output.deliver(finalText)
             onRecord?(TranscriptionRecord(
@@ -84,6 +109,7 @@ public final class DictationController {
         case .failed:
             lastTranscript = nil
         }
+        transcriptionTask = nil
         setState(.idle)
         mediaController?.resumeAfterDictation()
         onFinish?(outcome)
