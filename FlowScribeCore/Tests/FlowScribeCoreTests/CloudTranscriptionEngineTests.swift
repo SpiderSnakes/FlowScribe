@@ -42,20 +42,29 @@ final class CloudTranscriptionEngineTests: XCTestCase {
         catch { /* attendu */ }
     }
 
-    func test_validateKey_buildsAuthorizedGet_andReturnsTrueOn200() async {
-        let mock = MockTransport(statusCode: 200)
+    func test_validateKey_postsToTranscriptionEndpoint_andTreats422AsValid() async {
+        let mock = MockTransport(statusCode: 422)
         let engine = CloudTranscriptionEngine(config: .elevenLabs, apiKey: "xi-1", transport: mock, boundary: "B")
-        let ok = await engine.validateKey()
-        XCTAssertTrue(ok)
+        let r = await engine.validateKey()
+        XCTAssertTrue(r.ok)              // 422 = clé authentifiée, requête incomplète (pas de fichier)
+        XCTAssertEqual(r.status, 422)
         let req = mock.lastRequest
-        XCTAssertEqual(req?.httpMethod, "GET")
-        XCTAssertEqual(req?.url, CloudEngineConfig.elevenLabs.validationEndpoint)
+        XCTAssertEqual(req?.httpMethod, "POST")
+        XCTAssertEqual(req?.url, CloudEngineConfig.elevenLabs.endpoint)
         XCTAssertEqual(req?.value(forHTTPHeaderField: "xi-api-key"), "xi-1")
     }
 
-    func test_validateKey_returnsFalseOn401() async {
+    func test_validateKey_invalidOn401() async {
         let engine = CloudTranscriptionEngine(config: .openAI, apiKey: "bad", transport: MockTransport(statusCode: 401), boundary: "B")
-        let ok = await engine.validateKey()
-        XCTAssertFalse(ok)
+        let r = await engine.validateKey()
+        XCTAssertFalse(r.ok)
+        XCTAssertEqual(r.status, 401)
+    }
+
+    func test_validateKey_insufficientPermissionsOn403() async {
+        let engine = CloudTranscriptionEngine(config: .elevenLabs, apiKey: "scoped", transport: MockTransport(statusCode: 403), boundary: "B")
+        let r = await engine.validateKey()
+        XCTAssertFalse(r.ok)
+        XCTAssertEqual(r.status, 403)
     }
 }

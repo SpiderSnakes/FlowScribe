@@ -6,7 +6,7 @@ struct SettingsView: View {
     let permissions: PermissionsModel
 
     @State private var keyDrafts: [String: String] = [:]
-    @State private var validation: [String: Bool] = [:]
+    @State private var results: [String: KeyTestResult] = [:]
     @State private var testing: Set<String> = []
 
     private var cloudProviders: [EngineProvider] {
@@ -25,11 +25,16 @@ struct SettingsView: View {
 
             Section("Clés API (stockées dans le Keychain)") {
                 ForEach(cloudProviders, id: \.self) { p in
-                    HStack(spacing: 8) {
-                        SecureField(p.displayName, text: draftBinding(p))
-                        statusIcon(for: p)
-                        Button("Tester") { test(p) }
-                            .disabled(testing.contains(p.secretKey ?? ""))
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 8) {
+                            SecureField(p.displayName, text: draftBinding(p))
+                            statusIcon(for: p)
+                            Button("Tester") { test(p) }
+                                .disabled(testing.contains(p.secretKey ?? ""))
+                        }
+                        if let msg = message(for: p) {
+                            Text(msg).font(.caption).foregroundStyle(resultColor(for: p))
+                        }
                     }
                 }
                 Button("Enregistrer les clés") { saveAllKeys() }
@@ -55,7 +60,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 500)
+        .frame(width: 470, height: 540)
         .onAppear {
             for p in cloudProviders { if let k = p.secretKey { keyDrafts[k] = settings.apiKey(for: p) } }
             permissions.refresh()
@@ -67,10 +72,22 @@ struct SettingsView: View {
         let key = p.secretKey ?? ""
         if testing.contains(key) {
             ProgressView().controlSize(.small)
-        } else if let ok = validation[key] {
-            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(ok ? .green : .red)
+        } else if let r = results[key] {
+            Image(systemName: r.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(r.ok ? .green : .red)
         }
+    }
+
+    private func message(for p: EngineProvider) -> String? {
+        guard let key = p.secretKey, let r = results[key] else { return nil }
+        if r.ok { return "Clé valide" + (r.status.map { " (HTTP \($0))" } ?? "") }
+        let status = r.status.map { "\($0) — " } ?? ""
+        return "Échec : \(status)\(r.message ?? "erreur inconnue")"
+    }
+
+    private func resultColor(for p: EngineProvider) -> Color {
+        guard let key = p.secretKey, let r = results[key] else { return .secondary }
+        return r.ok ? .green : .red
     }
 
     private func permissionRow(_ label: String, ok: Bool) -> some View {
@@ -96,12 +113,15 @@ struct SettingsView: View {
     private func test(_ p: EngineProvider) {
         guard let config = p.config, let key = p.secretKey else { return }
         let value = keyDrafts[key] ?? settings.apiKey(for: p)
-        guard !value.isEmpty else { validation[key] = false; return }
+        guard !value.isEmpty else {
+            results[key] = KeyTestResult(ok: false, status: nil, message: "Aucune clé saisie")
+            return
+        }
         testing.insert(key)
         Task {
             let engine = CloudTranscriptionEngine(config: config, apiKey: value, transport: URLSessionTransport())
-            let ok = await engine.validateKey()
-            validation[key] = ok
+            let r = await engine.validateKey()
+            results[key] = r
             testing.remove(key)
         }
     }
