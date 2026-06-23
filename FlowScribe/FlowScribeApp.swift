@@ -24,6 +24,7 @@ struct FlowScribeApp: App {
             }
             .padding(20)
             .frame(width: 380)
+            .tint(Theme.accent)
             .task { await setup() }
         }
         Settings {
@@ -48,15 +49,20 @@ struct FlowScribeApp: App {
         await permissions.requestAll()
         guard controller == nil else { return }
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
+        let recorder = MicrophoneRecorder(outputDirectory: dir)
+        let hud = RecordingHUD()
+        recorder.onLevel = { level in
+            Task { @MainActor in hud.setLevel(level) }
+        }
         let c = DictationController(
-            recorder: MicrophoneRecorder(outputDirectory: dir),
+            recorder: recorder,
             service: Self.makeService(from: settings, profiles: profiles),
             output: SystemTextOutput(),
             locale: Locale(identifier: settings.localeIdentifier)
         )
         Self.applyOptions(to: c, settings: settings)
         controller = c
-        bridge = HotkeyBridge(controller: c, hud: RecordingHUD())
+        bridge = HotkeyBridge(controller: c, hud: hud)
         settings.onChange = { [weak c, settings, profiles] in
             guard let c else { return }
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
