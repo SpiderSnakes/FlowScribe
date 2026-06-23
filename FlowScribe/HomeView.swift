@@ -26,8 +26,24 @@ struct HomeView: View {
                     Image(systemName: "mic.fill").font(.system(size: 18)).frame(width: 44, height: 44)
                 }
                 .buttonStyle(.glassProminent).clipShape(Circle())
-                Text("Moteur : \(settings.defaultProvider.displayName)")
-                    .foregroundStyle(.secondary)
+                Menu {
+                    ForEach(EngineProvider.allCases, id: \.self) { p in
+                        Menu(p.displayName) {
+                            ForEach(p.models, id: \.id) { m in
+                                Button(m.displayName) {
+                                    settings.defaultProvider = p
+                                    settings.setModel(m.id, for: p)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    let p = settings.defaultProvider
+                    let model = p.models.first { $0.id == settings.selectedModelId(for: p) }
+                    Label("\(p.displayName) · \(model?.displayName ?? "")", systemImage: "cpu")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
                 Spacer()
             }
             TextField("Rechercher dans l'historique…", text: $query)

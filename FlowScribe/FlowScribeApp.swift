@@ -39,7 +39,9 @@ struct FlowScribeApp: App {
         let url = history.audioURL(r.audioFileName)
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let apple = AppleSpeechEngine()
-        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider), transport: URLSessionTransport()) ?? apple
+        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider),
+                                          modelId: settings.selectedModelId(for: provider),
+                                          transport: URLSessionTransport()) ?? apple
         let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
         let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: r.locale))
         if case let .success(text, engineId, _) = outcome {
@@ -83,7 +85,9 @@ struct FlowScribeApp: App {
         let transport = URLSessionTransport()
         let apple = AppleSpeechEngine()
         let provider = settings.defaultProvider
-        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider), transport: transport) ?? apple
+        let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider),
+                                          modelId: settings.selectedModelId(for: provider),
+                                          transport: transport) ?? apple
         return TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
     }
 

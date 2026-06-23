@@ -47,4 +47,13 @@ final class SettingsStore {
         secrets.set(value.isEmpty ? nil : value, for: key)
         onChange?()
     }
+
+    func selectedModelId(for provider: EngineProvider) -> String {
+        defaults.string(forKey: "model.\(provider.rawValue)") ?? provider.defaultModelId
+    }
+
+    func setModel(_ id: String, for provider: EngineProvider) {
+        defaults.set(id, forKey: "model.\(provider.rawValue)")
+        onChange?()
+    }
 }

@@ -32,6 +32,13 @@ struct SettingsView: View {
                             Button("Tester") { test(p) }
                                 .disabled(testing.contains(p.secretKey ?? ""))
                         }
+                        if p.models.count > 1 {
+                            Picker("Modèle", selection: Binding(
+                                get: { settings.selectedModelId(for: p) },
+                                set: { settings.setModel($0, for: p) })) {
+                                ForEach(p.models, id: \.id) { m in Text(m.displayName).tag(m.id) }
+                            }
+                        }
                         if let msg = message(for: p) {
                             Text(msg).font(.caption).foregroundStyle(resultColor(for: p))
                         }
