@@ -61,7 +61,7 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
         request.httpBody = form.encoded()
 
         do {
-            let (data, response) = try await transport.send(request)
+            let (_, response) = try await transport.send(request)
             switch response.statusCode {
             case 401: return KeyTestResult(ok: false, status: 401, message: "Clé invalide")
             case 403: return KeyTestResult(ok: false, status: 403, message: "Permissions insuffisantes pour la transcription")
