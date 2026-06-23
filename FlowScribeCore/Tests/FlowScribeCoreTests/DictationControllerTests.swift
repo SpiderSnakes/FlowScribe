@@ -90,4 +90,14 @@ final class DictationControllerTests: XCTestCase {
         c.pressDown(); await c.pressUp(kind: .hold)
         XCTAssertEqual(out.delivered, ["salut [propre]"])
     }
+
+    func test_onRecord_receivesFinalTextAndEngine() async {
+        let (c, _, _) = makeController()               // primaire "mock" -> "salut"
+        var rec: TranscriptionRecord?
+        c.onRecord = { rec = $0 }
+        c.pressDown(); await c.pressUp(kind: .hold)
+        XCTAssertEqual(rec?.text, "salut")
+        XCTAssertEqual(rec?.engineId, "mock")
+        XCTAssertEqual(rec?.audioFileName, "a.caf")
+    }
 }

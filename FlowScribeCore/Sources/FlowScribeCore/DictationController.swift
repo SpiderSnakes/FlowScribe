@@ -13,6 +13,8 @@ public final class DictationController {
     public var mediaController: MediaController?
     /// Nettoyage IA optionnel appliqué avant le collage.
     public var cleanup: ((String) async -> String)?
+    /// Notifié en fin de dictée réussie avec le record à historiser.
+    public var onRecord: ((TranscriptionRecord) -> Void)?
 
     private let recorder: AudioRecorder
     private var service: TranscriptionService
@@ -63,11 +65,15 @@ public final class DictationController {
         state = .transcribing
         let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
         switch outcome {
-        case let .success(text, _, _):
+        case let .success(text, engineId, _):
             var finalText = text
             if let cleanup { finalText = await cleanup(finalText) }
             lastTranscript = finalText
             output.deliver(finalText)
+            onRecord?(TranscriptionRecord(
+                id: UUID(), date: Date(), text: finalText, engineId: engineId,
+                locale: locale.identifier, audioFileName: recording.url.lastPathComponent,
+                duration: recording.duration))
         case .failed:
             lastTranscript = nil
         }
