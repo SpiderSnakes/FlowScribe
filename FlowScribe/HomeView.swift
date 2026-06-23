@@ -55,6 +55,7 @@ struct HomeView: View {
                 Spacer()
             } else {
                 List(filtered) { row($0) }
+                    .scrollContentBackground(.hidden)
             }
         }
         .padding(20)

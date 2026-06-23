@@ -10,6 +10,7 @@ struct SidebarView: View {
             row(.reglages)
         }
         .padding(8)
+        .animation(.snappy(duration: 0.22), value: section)
     }
 
     private func row(_ s: AppSection) -> some View {

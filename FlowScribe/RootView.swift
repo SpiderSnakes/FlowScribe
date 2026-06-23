@@ -18,18 +18,25 @@ struct RootView: View {
             SidebarView(section: $section)
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
-            switch section {
-            case .accueil:
-                HomeView(settings: settings, permissions: permissions, history: history,
-                         onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe)
-            case .fichiers:
-                FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
-            case .vocabulaire:
-                VocabularyView(glossary: glossary, profiles: profiles, settings: settings)
-            case .reglages:
-                SettingsView(settings: settings, permissions: permissions)
+            ZStack {
+                AuroraBackground()
+                detailContent
             }
         }
         .tint(Theme.accent)
+    }
+
+    @ViewBuilder private var detailContent: some View {
+        switch section {
+        case .accueil:
+            HomeView(settings: settings, permissions: permissions, history: history,
+                     onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe)
+        case .fichiers:
+            FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
+        case .vocabulaire:
+            VocabularyView(glossary: glossary, profiles: profiles, settings: settings)
+        case .reglages:
+            SettingsView(settings: settings, permissions: permissions)
+        }
     }
 }
