@@ -54,4 +54,13 @@ final class DictationControllerTests: XCTestCase {
         c.pressDown(); await c.pressUp(kind: .hold)
         XCTAssertEqual(received, .success(text: "salut", engineId: "mock", usedFallback: false))
     }
+
+    func test_configure_swapsEngineAtRuntime() async {
+        let (c, _, out) = makeController()
+        c.configure(service: TranscriptionService(primary: MockEngine(id: "e2", result: "nouveau"),
+                                                   fallback: MockEngine(id: "a", result: "l")),
+                    locale: Locale(identifier: "en-US"))
+        c.pressDown(); await c.pressUp(kind: .hold)
+        XCTAssertEqual(out.delivered, ["nouveau"])
+    }
 }

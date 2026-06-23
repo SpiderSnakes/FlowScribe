@@ -7,8 +7,15 @@ final class SettingsStore {
     private let defaults = UserDefaults.standard
     private let secrets: SecretStore
 
-    var defaultProvider: EngineProvider { didSet { defaults.set(defaultProvider.rawValue, forKey: "defaultProvider") } }
-    var localeIdentifier: String { didSet { defaults.set(localeIdentifier, forKey: "localeIdentifier") } }
+    /// Notifié quand un réglage affectant le pipeline change (moteur, langue, clé) → reconstruction à chaud.
+    @ObservationIgnored var onChange: (@MainActor () -> Void)?
+
+    var defaultProvider: EngineProvider {
+        didSet { defaults.set(defaultProvider.rawValue, forKey: "defaultProvider"); onChange?() }
+    }
+    var localeIdentifier: String {
+        didSet { defaults.set(localeIdentifier, forKey: "localeIdentifier"); onChange?() }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -25,5 +32,6 @@ final class SettingsStore {
     func setAPIKey(_ value: String, for provider: EngineProvider) {
         guard let key = provider.secretKey else { return }
         secrets.set(value.isEmpty ? nil : value, for: key)
+        onChange?()
     }
 }

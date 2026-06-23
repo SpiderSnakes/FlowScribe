@@ -11,9 +11,9 @@ public final class DictationController {
     public var onFinish: ((TranscriptionOutcome) -> Void)?
 
     private let recorder: AudioRecorder
-    private let service: TranscriptionService
+    private var service: TranscriptionService
+    private var locale: Locale
     private let output: TextOutput
-    private let locale: Locale
 
     /// True si l'appui en cours a lui-même démarré l'enregistrement (sert au comportement du tap).
     private var pressStartedRecording = false
@@ -22,6 +22,12 @@ public final class DictationController {
         self.recorder = recorder
         self.service = service
         self.output = output
+        self.locale = locale
+    }
+
+    /// Remplace le moteur/la langue à chaud (changement de réglages sans relancer l'app).
+    public func configure(service: TranscriptionService, locale: Locale) {
+        self.service = service
         self.locale = locale
     }
 
