@@ -2,34 +2,11 @@ import AppKit
 import SwiftUI
 import FlowScribeCore
 
-struct HUDView: View {
-    let state: DictationState
-    var body: some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(state == .recording ? Color.red : Color.orange)
-                .frame(width: 10, height: 10)
-            Text(label)
-                .font(.system(size: 13, weight: .medium))
-                .fixedSize(horizontal: true, vertical: false)
-        }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .glassEffect(.regular, in: .capsule)
-    }
-    private var label: String {
-        switch state {
-        case .idle: return "Prêt"
-        case .recording: return "Enregistrement…"
-        case .transcribing: return "Transcription…"
-        }
-    }
-}
-
 struct ResultHUDView: View {
     let message: String
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.sky)
             Text(message)
                 .font(.system(size: 13, weight: .medium))
                 .fixedSize(horizontal: true, vertical: false)
@@ -42,34 +19,54 @@ struct ResultHUDView: View {
 @MainActor
 final class RecordingHUD {
     private var panel: NSPanel?
+    private let model = HUDModel()
+    private var showingResult = false
 
     func show(state: DictationState) {
-        present(NSHostingView(rootView: HUDView(state: state)))
+        model.state = state
+        presentLive()
     }
 
-    /// Affiche un toast de résultat (moteur utilisé / repli) puis se masque seul.
+    func setLevel(_ level: Float) {
+        model.level = Double(max(0, min(1, level)))
+    }
+
+    /// Toast de résultat (moteur utilisé / repli), restylé bleu, auto-masqué.
     func showResult(_ message: String) {
-        present(NSHostingView(rootView: ResultHUDView(message: message)))
+        let panel = self.panel ?? makePanel()
+        panel.contentView = NSHostingView(rootView: ResultHUDView(message: message))
+        showingResult = true
+        sizeToFit(panel, fallback: NSSize(width: 200, height: 44))
+        panel.orderFrontRegardless()
+        self.panel = panel
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.6))
             self.hide()
         }
     }
 
-    func hide() { panel?.orderOut(nil) }
+    func hide() { panel?.orderOut(nil); showingResult = false }
 
-    private func present(_ hosting: NSView) {
+    private func presentLive() {
         let panel = self.panel ?? makePanel()
-        panel.contentView = hosting
-        let fit = hosting.fittingSize
-        panel.setContentSize(NSSize(width: max(fit.width, 120), height: max(fit.height, 36)))
-        positionBottomCenter(panel)
+        if showingResult || !(panel.contentView is NSHostingView<LiveHUDView>) {
+            panel.contentView = NSHostingView(rootView: LiveHUDView(model: model))
+            showingResult = false
+            panel.setContentSize(NSSize(width: 280, height: 88))
+            positionBottomCenter(panel)
+        }
         panel.orderFrontRegardless()
         self.panel = panel
     }
 
+    private func sizeToFit(_ panel: NSPanel, fallback: NSSize) {
+        let fit = panel.contentView?.fittingSize ?? fallback
+        panel.setContentSize(NSSize(width: max(fit.width, 120), height: max(fit.height, 36)))
+        positionBottomCenter(panel)
+    }
+
     private func makePanel() -> NSPanel {
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 220, height: 44),
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 88),
                             styleMask: [.nonactivatingPanel, .borderless],
                             backing: .buffered, defer: false)
         panel.isFloatingPanel = true
