@@ -11,6 +11,7 @@ struct HUDView: View {
                 .frame(width: 10, height: 10)
             Text(label)
                 .font(.system(size: 13, weight: .medium))
+                .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .background(.ultraThinMaterial, in: Capsule())
@@ -30,7 +31,11 @@ final class RecordingHUD {
 
     func show(state: DictationState) {
         let panel = self.panel ?? makePanel()
-        panel.contentView = NSHostingView(rootView: HUDView(state: state))
+        let hosting = NSHostingView(rootView: HUDView(state: state))
+        panel.contentView = hosting
+        // Redimensionne le panneau à la taille naturelle du contenu (sinon le texte est rogné).
+        let fit = hosting.fittingSize
+        panel.setContentSize(NSSize(width: max(fit.width, 120), height: max(fit.height, 36)))
         positionBottomCenter(panel)
         panel.orderFrontRegardless()
         self.panel = panel
@@ -44,6 +49,7 @@ final class RecordingHUD {
                             backing: .buffered, defer: false)
         panel.isFloatingPanel = true
         panel.level = .statusBar
+        panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

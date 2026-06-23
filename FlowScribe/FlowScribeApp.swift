@@ -3,15 +3,19 @@ import FlowScribeCore
 
 @main
 struct FlowScribeApp: App {
+    @State private var permissions = PermissionsModel()
     @State private var bridge: HotkeyBridge?
 
     var body: some Scene {
         WindowGroup("FlowScribe") {
-            VStack(spacing: 12) {
+            VStack(spacing: 16) {
                 Text("FlowScribe").font(.title2.bold())
                 Text("Appuie sur ⌥Espace pour dicter.").foregroundStyle(.secondary)
+                Divider()
+                PermissionsView(model: permissions)
             }
-            .frame(width: 360, height: 200)
+            .padding(20)
+            .frame(width: 380)
             .task { await setup() }
         }
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
@@ -21,9 +25,9 @@ struct FlowScribeApp: App {
 
     @MainActor
     private func setup() async {
+        permissions.refresh()
+        await permissions.requestAll()
         guard bridge == nil else { return }
-        _ = await Permissions.requestMicrophone()
-        _ = await Permissions.requestSpeech()
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let controller = DictationController(
             recorder: MicrophoneRecorder(outputDirectory: dir),
