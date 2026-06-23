@@ -69,8 +69,10 @@ struct FlowScribeApp: App {
         )
         Self.applyOptions(to: c, settings: settings)
         c.onRecord = { [history] r in history.add(r) }
+        c.onStateChange = { [hud] s in if s != .idle { hud.show(state: s) } }
+        c.onFinish = { [hud] outcome in hud.showResult(Self.resultMessage(for: outcome)) }
         controller = c
-        bridge = HotkeyBridge(controller: c, hud: hud)
+        bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
         settings.onChange = { [weak c, settings, profiles] in
             guard let c else { return }
@@ -112,5 +114,14 @@ struct FlowScribeApp: App {
             return { (try? await svc.cleanup($0)) ?? $0 }
         }
         return nil
+    }
+
+    private static func resultMessage(for outcome: TranscriptionOutcome) -> String {
+        switch outcome {
+        case let .success(_, engineId, usedFallback):
+            return usedFallback ? "Repli Apple local" : "via \(engineId)"
+        case .failed:
+            return "Échec — réessaie"
+        }
     }
 }

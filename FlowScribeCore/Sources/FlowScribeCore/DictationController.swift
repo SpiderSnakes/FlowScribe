@@ -15,6 +15,8 @@ public final class DictationController {
     public var cleanup: ((String) async -> String)?
     /// Notifié en fin de dictée réussie avec le record à historiser.
     public var onRecord: ((TranscriptionRecord) -> Void)?
+    /// Notifié à chaque changement d'état — pilote le HUD quel que soit le déclencheur (hotkey ou bouton).
+    public var onStateChange: ((DictationState) -> Void)?
 
     private let recorder: AudioRecorder
     private var service: TranscriptionService
@@ -35,15 +37,20 @@ public final class DictationController {
         self.locale = locale
     }
 
+    private func setState(_ newState: DictationState) {
+        state = newState
+        onStateChange?(newState)
+    }
+
     public func pressDown() {
         if state == .idle {
             do {
                 try recorder.start()
-                state = .recording
+                setState(.recording)
                 pressStartedRecording = true
                 mediaController?.pauseForDictation()
             } catch {
-                state = .idle
+                setState(.idle)
             }
         } else {
             pressStartedRecording = false
@@ -62,7 +69,7 @@ public final class DictationController {
     private func finishRecording() async {
         guard state == .recording else { return }
         let recording = await recorder.stop()
-        state = .transcribing
+        setState(.transcribing)
         let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
         switch outcome {
         case let .success(text, engineId, _):
@@ -77,7 +84,7 @@ public final class DictationController {
         case .failed:
             lastTranscript = nil
         }
-        state = .idle
+        setState(.idle)
         mediaController?.resumeAfterDictation()
         onFinish?(outcome)
     }

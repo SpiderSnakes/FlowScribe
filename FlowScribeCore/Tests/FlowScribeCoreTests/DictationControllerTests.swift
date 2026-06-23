@@ -100,4 +100,12 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(rec?.engineId, "mock")
         XCTAssertEqual(rec?.audioFileName, "a.caf")
     }
+
+    func test_onStateChange_firesRecordingTranscribingIdle() async {
+        let (c, _, _) = makeController()
+        var states: [DictationState] = []
+        c.onStateChange = { states.append($0) }
+        c.pressDown(); await c.pressUp(kind: .hold)
+        XCTAssertEqual(states, [.recording, .transcribing, .idle])
+    }
 }
