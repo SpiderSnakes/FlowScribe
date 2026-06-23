@@ -39,6 +39,10 @@ targets:
       path: FlowScribe/Info.plist
       properties:
         CFBundleDisplayName: FlowScribe
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations:
+          - en
+          - fr
         LSMinimumSystemVersion: "26.0"
         NSMicrophoneUsageDescription: "FlowScribe a besoin du micro pour transcrire votre voix."
         NSSpeechRecognitionUsageDescription: "FlowScribe utilise la reconnaissance vocale locale de macOS pour transcrire vos dictées."
