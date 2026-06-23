@@ -17,8 +17,9 @@ final class DictationControllerTests: XCTestCase {
 
     func makeController() -> (DictationController, SpyRecorder, SpyOutput) {
         let rec = SpyRecorder(); let out = SpyOutput()
-        let engine = MockEngine(id: "mock", result: "salut")
-        let c = DictationController(recorder: rec, engine: engine, output: out, locale: Locale(identifier: "fr-FR"))
+        let service = TranscriptionService(primary: MockEngine(id: "mock", result: "salut"),
+                                           fallback: MockEngine(id: "apple", result: "local"))
+        let c = DictationController(recorder: rec, service: service, output: out, locale: Locale(identifier: "fr-FR"))
         return (c, rec, out)
     }
 

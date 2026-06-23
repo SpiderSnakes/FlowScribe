@@ -8,16 +8,16 @@ public final class DictationController {
     public private(set) var lastTranscript: String?
 
     private let recorder: AudioRecorder
-    private let engine: TranscriptionEngine
+    private let service: TranscriptionService
     private let output: TextOutput
     private let locale: Locale
 
     /// True si l'appui en cours a lui-même démarré l'enregistrement (sert au comportement du tap).
     private var pressStartedRecording = false
 
-    public init(recorder: AudioRecorder, engine: TranscriptionEngine, output: TextOutput, locale: Locale) {
+    public init(recorder: AudioRecorder, service: TranscriptionService, output: TextOutput, locale: Locale) {
         self.recorder = recorder
-        self.engine = engine
+        self.service = service
         self.output = output
         self.locale = locale
     }
@@ -41,15 +41,9 @@ public final class DictationController {
     public func pressUp(kind: PressKind) async {
         switch kind {
         case .hold:
-            // Push-to-talk : on relâche -> on arrête toujours.
             await finishRecording()
         case .tap:
-            // Bascule : si ce tap vient de démarrer, on laisse tourner ; sinon il arrête.
-            if pressStartedRecording {
-                return
-            } else {
-                await finishRecording()
-            }
+            if pressStartedRecording { return } else { await finishRecording() }
         }
     }
 
@@ -57,11 +51,12 @@ public final class DictationController {
         guard state == .recording else { return }
         let recording = await recorder.stop()
         state = .transcribing
-        do {
-            let text = try await engine.transcribeFile(at: recording.url, locale: locale)
+        let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
+        switch outcome {
+        case let .success(text, _, _):
             lastTranscript = text
             output.deliver(text)
-        } catch {
+        case .failed:
             lastTranscript = nil
         }
         state = .idle
