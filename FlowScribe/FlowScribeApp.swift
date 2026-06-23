@@ -5,6 +5,8 @@ import FlowScribeCore
 struct FlowScribeApp: App {
     @State private var permissions = PermissionsModel()
     @State private var settings = SettingsStore(secrets: KeychainSecretStore())
+    @State private var glossary = JSONGlossaryStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/glossary.json"))
+    @State private var profiles = JSONCorrectionProfileStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/corrections.json"))
     @State private var controller: DictationController?
     @State private var bridge: HotkeyBridge?
 
@@ -16,7 +18,7 @@ struct FlowScribeApp: App {
                 if !permissions.allGranted {
                     Divider()
                     PermissionsView(model: permissions)
-                    Text("Réglages (⌘,) pour les clés et le moteur.")
+                    Text("Réglages (⌘,) pour les clés, le moteur, le glossaire et la calibration.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -24,9 +26,17 @@ struct FlowScribeApp: App {
             .frame(width: 380)
             .task { await setup() }
         }
-        Settings { SettingsView(settings: settings, permissions: permissions) }
+        Settings {
+            TabView {
+                SettingsView(settings: settings, permissions: permissions)
+                    .tabItem { Label("Réglages", systemImage: "gearshape") }
+                GlossaryView(glossary: glossary, profiles: profiles)
+                    .tabItem { Label("Glossaire", systemImage: "text.book.closed") }
+                CalibrationView(glossary: glossary, profiles: profiles, settings: settings)
+                    .tabItem { Label("Calibration", systemImage: "waveform") }
+            }
+        }
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
-            Button("Réglages…") { NSApp.activate(ignoringOtherApps: true) }
             Button("Quitter") { NSApplication.shared.terminate(nil) }
         }
     }
@@ -39,25 +49,24 @@ struct FlowScribeApp: App {
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let c = DictationController(
             recorder: MicrophoneRecorder(outputDirectory: dir),
-            service: Self.makeService(from: settings),
+            service: Self.makeService(from: settings, profiles: profiles),
             output: SystemTextOutput(),
             locale: Locale(identifier: settings.localeIdentifier)
         )
         controller = c
         bridge = HotkeyBridge(controller: c, hud: RecordingHUD())
-        // Application à chaud : un changement de moteur/clé/langue reconstruit le service.
-        settings.onChange = { [weak c, settings] in
-            c?.configure(service: Self.makeService(from: settings),
+        settings.onChange = { [weak c, settings, profiles] in
+            c?.configure(service: Self.makeService(from: settings, profiles: profiles),
                          locale: Locale(identifier: settings.localeIdentifier))
         }
     }
 
     @MainActor
-    private static func makeService(from settings: SettingsStore) -> TranscriptionService {
+    private static func makeService(from settings: SettingsStore, profiles: CorrectionProfileStore) -> TranscriptionService {
         let transport = URLSessionTransport()
         let apple = AppleSpeechEngine()
         let provider = settings.defaultProvider
         let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider), transport: transport) ?? apple
-        return TranscriptionService(primary: primary, fallback: apple)
+        return TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
     }
 }
