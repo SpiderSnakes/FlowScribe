@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var keyDrafts: [String: String] = [:]
     @State private var results: [String: KeyTestResult] = [:]
     @State private var testing: Set<String> = []
+    @State private var micDevices: [AudioInputDevice] = []
 
     private var cloudProviders: [EngineProvider] {
         EngineProvider.allCases.filter { $0.secretKey != nil }
@@ -58,8 +59,17 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Micro") {
+                Picker("Périphérique d'entrée", selection: $settings.selectedMicrophoneUID) {
+                    Text("Système (par défaut)").tag("")
+                    ForEach(micDevices) { Text($0.name).tag($0.id) }
+                }
+            }
+
             Section("Confort") {
                 Toggle("Mettre la musique en pause pendant la dictée", isOn: $settings.musicControlEnabled)
+                Toggle("Repères sonores (début/fin d'enregistrement)", isOn: $settings.soundEffectsEnabled)
+                Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
                 Toggle("Nettoyage IA du texte (ponctuation, hésitations)", isOn: $settings.cleanupEnabled)
                 if settings.cleanupEnabled {
                     Text("Utilise ta clé Mistral (sinon OpenAI). Ajoute un court délai après la dictée.")
@@ -94,6 +104,7 @@ struct SettingsView: View {
         .onAppear {
             for p in cloudProviders { if let k = p.secretKey { keyDrafts[k] = settings.apiKey(for: p) } }
             permissions.refresh()
+            micDevices = CoreAudioDevices.inputDevices()
         }
     }
 

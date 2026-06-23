@@ -12,6 +12,7 @@ struct RootView: View {
     let onTranscribeFile: (URL, EngineProvider, String) async -> Bool
 
     @State private var section: AppSection = .accueil
+    @State private var micName = "Micro système"
 
     var body: some View {
         NavigationSplitView {
@@ -21,6 +22,22 @@ struct RootView: View {
             ZStack {
                 VisualEffectBackground(material: .sidebar).ignoresSafeArea()
                 detailContent
+            }
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 5) {
+                    Image(systemName: "mic.fill").font(.system(size: 10))
+                    Text(micName).font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .padding(.top, 6).padding(.trailing, 12)
+            }
+            .onAppear {
+                micName = settings.selectedMicrophoneUID.isEmpty ? "Micro système"
+                    : (CoreAudioDevices.name(forUID: settings.selectedMicrophoneUID) ?? "Micro")
+            }
+            .onChange(of: settings.selectedMicrophoneUID) { _, uid in
+                micName = uid.isEmpty ? "Micro système" : (CoreAudioDevices.name(forUID: uid) ?? "Micro")
             }
         }
         .tint(Theme.accent)

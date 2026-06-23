@@ -82,6 +82,7 @@ struct FlowScribeApp: App {
         guard controller == nil else { return }
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let recorder = MicrophoneRecorder(outputDirectory: dir)
+        recorder.preferredDeviceUID = settings.selectedMicrophoneUID
         let hud = RecordingHUD()
         hud.style = settings.recordingWindowStyle
         recorder.onLevel = { level in
@@ -95,18 +96,28 @@ struct FlowScribeApp: App {
         )
         Self.applyOptions(to: c, settings: settings)
         c.onRecord = { [history] r in history.add(r) }
-        c.onStateChange = { [hud] s in if s != .idle { hud.show(state: s) } }
+        c.onStateChange = { [hud, settings] s in
+            if s != .idle { hud.show(state: s) }
+            if settings.soundEffectsEnabled {
+                if s == .recording { SoundEffects.playStart() }
+                else if s == .transcribing { SoundEffects.playStop() }
+            }
+        }
         c.onFinish = { [hud] outcome in hud.showResult(Self.resultMessage(for: outcome)) }
-        c.onCancel = { [hud] in hud.hide() }
+        c.onCancel = { [hud, settings] in
+            hud.hide()
+            if settings.soundEffectsEnabled { SoundEffects.playStop() }
+        }
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
-        settings.onChange = { [weak c, settings, profiles, hud] in
+        settings.onChange = { [weak c, settings, profiles, hud, recorder] in
             guard let c else { return }
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)
             hud.style = settings.recordingWindowStyle
+            recorder.preferredDeviceUID = settings.selectedMicrophoneUID
         }
     }
 

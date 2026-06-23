@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import CoreAudio
 
 public protocol AudioRecorder: Sendable {
     func start() throws
@@ -17,6 +18,8 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
 
     /// Niveau de voix live (RMS 0→1) pendant l'enregistrement.
     public var onLevel: (@Sendable (Float) -> Void)?
+    /// UID du micro à utiliser (vide/nil = micro système par défaut). Pris en compte au prochain `start()`.
+    public var preferredDeviceUID: String?
 
     public init(outputDirectory: URL) {
         self.outputDirectory = outputDirectory
@@ -26,6 +29,13 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
         let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).caf")
         let input = engine.inputNode
+        // Route vers le micro choisi (sinon micro système par défaut).
+        if let uid = preferredDeviceUID, !uid.isEmpty,
+           let devID = CoreAudioDevices.deviceID(forUID: uid), let au = input.audioUnit {
+            var dev = devID
+            AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice,
+                                 kAudioUnitScope_Global, 0, &dev, UInt32(MemoryLayout<AudioDeviceID>.size))
+        }
         let format = input.outputFormat(forBus: 0)
         let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
         let levelHandler = onLevel

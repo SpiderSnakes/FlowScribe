@@ -47,6 +47,18 @@ final class SettingsStore {
     var recordingWindowStyle: RecordingWindowStyle {
         didSet { defaults.set(recordingWindowStyle.rawValue, forKey: "recordingWindowStyle"); onChange?() }
     }
+    /// UID du micro choisi (vide = micro système par défaut).
+    var selectedMicrophoneUID: String {
+        didSet { defaults.set(selectedMicrophoneUID, forKey: "selectedMicrophoneUID"); onChange?() }
+    }
+    /// Repères sonores au début/à la fin de l'enregistrement.
+    var soundEffectsEnabled: Bool {
+        didSet { defaults.set(soundEffectsEnabled, forKey: "soundEffectsEnabled") }
+    }
+    /// Lancement au démarrage de session (synchronisé avec SMAppService).
+    var launchAtLogin: Bool {
+        didSet { LaunchAtLogin.set(launchAtLogin) }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -58,6 +70,9 @@ final class SettingsStore {
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
         self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
         self.recordingWindowStyle = RecordingWindowStyle(rawValue: defaults.string(forKey: "recordingWindowStyle") ?? "") ?? .classic
+        self.selectedMicrophoneUID = defaults.string(forKey: "selectedMicrophoneUID") ?? ""
+        self.soundEffectsEnabled = defaults.bool(forKey: "soundEffectsEnabled")
+        self.launchAtLogin = LaunchAtLogin.isEnabled
     }
 
     func apiKey(for provider: EngineProvider) -> String {
