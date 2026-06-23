@@ -33,6 +33,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: cloud.spidersnake.FlowScribe
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: FlowScribe/FlowScribe.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSUIElement: NO
     info:
       path: FlowScribe/Info.plist
