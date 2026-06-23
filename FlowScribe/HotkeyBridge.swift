@@ -17,7 +17,19 @@ final class HotkeyBridge {
     init(controller: DictationController, hud: RecordingHUD) {
         self.controller = controller
         self.hud = hud
+        controller.onFinish = { [weak hud] outcome in
+            hud?.showResult(Self.message(for: outcome))
+        }
         register()
+    }
+
+    private static func message(for outcome: TranscriptionOutcome) -> String {
+        switch outcome {
+        case let .success(_, engineId, usedFallback):
+            return usedFallback ? "Repli Apple local" : "via \(engineId)"
+        case .failed:
+            return "Échec — réessaie"
+        }
     }
 
     private func register() {
@@ -33,8 +45,11 @@ final class HotkeyBridge {
             let kind = PressClassifier.classify(pressDuration: duration, holdThreshold: self.holdThreshold)
             Task {
                 await self.controller.pressUp(kind: kind)
-                if self.controller.state == .idle { self.hud.hide() }
-                else { self.hud.show(state: self.controller.state) }
+                // Tap qui vient de démarrer : on garde le HUD d'enregistrement.
+                // Sinon, onFinish a déjà affiché le toast de résultat (auto-masqué).
+                if self.controller.state == .recording {
+                    self.hud.show(state: .recording)
+                }
             }
         }
     }

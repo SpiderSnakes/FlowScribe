@@ -7,6 +7,9 @@ public final class DictationController {
     public private(set) var state: DictationState = .idle
     public private(set) var lastTranscript: String?
 
+    /// Notifié à la fin d'une dictée (sert à l'UI : afficher le moteur utilisé / le repli).
+    public var onFinish: ((TranscriptionOutcome) -> Void)?
+
     private let recorder: AudioRecorder
     private let service: TranscriptionService
     private let output: TextOutput
@@ -60,5 +63,6 @@ public final class DictationController {
             lastTranscript = nil
         }
         state = .idle
+        onFinish?(outcome)
     }
 }

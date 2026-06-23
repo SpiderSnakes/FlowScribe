@@ -46,4 +46,12 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(out.delivered, ["salut"])
         XCTAssertEqual(c.state, .idle)
     }
+
+    func test_onFinish_receivesOutcome() async {
+        let (c, _, _) = makeController()
+        var received: TranscriptionOutcome?
+        c.onFinish = { received = $0 }
+        c.pressDown(); await c.pressUp(kind: .hold)
+        XCTAssertEqual(received, .success(text: "salut", engineId: "mock", usedFallback: false))
+    }
 }
