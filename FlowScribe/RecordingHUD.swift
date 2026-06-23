@@ -12,8 +12,7 @@ struct ResultHUDView: View {
                 .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(Theme.glassTint, in: .capsule)
-        .glassEffect(.clear, in: .capsule)
+        .glassEffect(.regular, in: .capsule)
         .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
     }
 }

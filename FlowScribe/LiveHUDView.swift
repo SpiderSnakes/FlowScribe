@@ -15,34 +15,36 @@ struct LiveHUDView: View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             ZStack {
-                // Teinte sombre très légère (lisibilité sur fond clair, sans casser la transparence).
-                Theme.glassTint
                 // Lueur bleue qui dérive lentement.
-                RadialGradient(colors: [Theme.glowColor.opacity(0.45), .clear],
-                               center: UnitPoint(x: 0.5 + 0.30 * cos(t * 0.6),
-                                                 y: 0.5 + 0.30 * sin(t * 0.8)),
-                               startRadius: 2, endRadius: 130)
+                RadialGradient(colors: [Theme.glowColor.opacity(0.35), .clear],
+                               center: UnitPoint(x: 0.5 + 0.25 * cos(t * 0.6),
+                                                 y: 0.5 + 0.25 * sin(t * 0.8)),
+                               startRadius: 2, endRadius: 120)
+                // Barres d'égaliseur : montent/descendent selon le niveau de voix.
                 Canvas { ctx, size in
-                    let c = CGPoint(x: size.width / 2, y: size.height / 2)
-                    let base = min(size.width, size.height) / 2
+                    let bars = 7
+                    let barW: CGFloat = 4
+                    let gap: CGFloat = 5
+                    let totalW = CGFloat(bars) * barW + CGFloat(bars - 1) * gap
+                    let startX = (size.width - totalW) / 2
+                    let midY = size.height / 2
+                    let maxH = size.height * 0.62
                     let recording = model.state == .recording
-                    let amp = recording ? (0.25 + 0.75 * model.level) : 0.12
-                    for i in 0..<3 {
-                        let phase = (t * 0.8 + Double(i) / 3).truncatingRemainder(dividingBy: 1)
-                        let r = base * (0.3 + phase * 0.9 * amp)
-                        let opacity = (1 - phase) * (recording ? 0.9 : 0.35)
-                        let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
-                        ctx.stroke(Path(ellipseIn: rect), with: .color(Theme.sky.opacity(opacity)), lineWidth: 2)
+                    for i in 0..<bars {
+                        let osc = 0.5 + 0.5 * sin(t * 6 + Double(i) * 0.7)
+                        let lvl = recording ? model.level : 0.0
+                        let frac = min(1.0, 0.16 + lvl * osc)   // repos ~0.16 → voix forte ~1
+                        let h = max(4, maxH * CGFloat(frac))
+                        let x = startX + CGFloat(i) * (barW + gap)
+                        let rect = CGRect(x: x, y: midY - h / 2, width: barW, height: h)
+                        ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(Theme.sky))
                     }
-                    let breath = 0.5 + 0.5 * sin(t * 2)
-                    let coreR = base * (recording ? (0.18 + 0.16 * model.level) : (0.16 + 0.04 * breath))
-                    ctx.fill(Path(ellipseIn: CGRect(x: c.x - coreR, y: c.y - coreR, width: 2 * coreR, height: 2 * coreR)),
-                             with: .color(Theme.sky))
                 }
             }
+            .frame(width: 240, height: 56)
+            .clipShape(Capsule())
+            .glassEffect(.regular, in: .capsule)
+            .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
         }
-        .frame(width: 260, height: 64)
-        .glassEffect(.clear, in: .capsule)
-        .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
     }
 }
