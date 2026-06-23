@@ -83,6 +83,7 @@ struct FlowScribeApp: App {
         let dir = URL.applicationSupportDirectory.appending(path: "FlowScribe/recordings")
         let recorder = MicrophoneRecorder(outputDirectory: dir)
         let hud = RecordingHUD()
+        hud.style = settings.recordingWindowStyle
         recorder.onLevel = { level in
             Task { @MainActor in hud.setLevel(level) }
         }
@@ -100,11 +101,12 @@ struct FlowScribeApp: App {
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
-        settings.onChange = { [weak c, settings, profiles] in
+        settings.onChange = { [weak c, settings, profiles, hud] in
             guard let c else { return }
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)
+            hud.style = settings.recordingWindowStyle
         }
     }
 

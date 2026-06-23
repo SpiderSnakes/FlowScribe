@@ -6,6 +6,20 @@ import FlowScribeCore
 final class HUDModel {
     var state: DictationState = .idle
     var level: Double = 0
+    /// Historique des niveaux (buffer circulaire) pour la waveform pleine largeur.
+    var levels: [Double] = Array(repeating: 0, count: 64)
+
+    func pushLevel(_ v: Double) {
+        let clamped = max(0, min(1, v))
+        level = clamped
+        levels.removeFirst()
+        levels.append(clamped)
+    }
+
+    func resetLevels() {
+        level = 0
+        levels = Array(repeating: 0, count: levels.count)
+    }
 }
 
 struct LiveHUDView: View {

@@ -23,14 +23,18 @@ final class RecordingHUD {
     private var panel: NSPanel?
     private let model = HUDModel()
     private var showingResult = false
+    /// Style de fenêtre choisi (mis à jour depuis les réglages).
+    var style: RecordingWindowStyle = .classic
+    private var liveStyle: RecordingWindowStyle?
 
     func show(state: DictationState) {
+        if state == .recording && model.state != .recording { model.resetLevels() }
         model.state = state
         presentLive()
     }
 
     func setLevel(_ level: Float) {
-        model.level = Double(max(0, min(1, level)))
+        model.pushLevel(Double(level))
     }
 
     /// Toast de résultat (moteur utilisé / repli), restylé bleu, auto-masqué.
@@ -50,11 +54,24 @@ final class RecordingHUD {
     func hide() { panel?.orderOut(nil); showingResult = false }
 
     private func presentLive() {
+        guard style != .none else { hide(); return }
         let panel = self.panel ?? makePanel()
-        if showingResult || !(panel.contentView is NSHostingView<LiveHUDView>) {
-            panel.contentView = NSHostingView(rootView: LiveHUDView(model: model))
+        let needsRebuild = showingResult || liveStyle != style || !(panel.contentView is NSHostingView<AnyView>)
+        if needsRebuild {
+            let size: NSSize
+            switch style {
+            case .classic:
+                panel.contentView = NSHostingView(rootView: AnyView(ClassicHUDView(model: model)))
+                size = NSSize(width: 412, height: 120)
+            case .mini:
+                panel.contentView = NSHostingView(rootView: AnyView(LiveHUDView(model: model)))
+                size = NSSize(width: 280, height: 88)
+            case .none:
+                return
+            }
             showingResult = false
-            panel.setContentSize(NSSize(width: 280, height: 88))
+            liveStyle = style
+            panel.setContentSize(size)
             positionBottomCenter(panel)
         }
         panel.orderFrontRegardless()

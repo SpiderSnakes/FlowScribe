@@ -52,6 +52,12 @@ struct SettingsView: View {
                 TextField("Identifiant de langue (ex. fr-FR)", text: $settings.localeIdentifier)
             }
 
+            Section("Apparence") {
+                Picker("Fenêtre d'enregistrement", selection: $settings.recordingWindowStyle) {
+                    ForEach(RecordingWindowStyle.allCases) { Text($0.title).tag($0) }
+                }
+            }
+
             Section("Confort") {
                 Toggle("Mettre la musique en pause pendant la dictée", isOn: $settings.musicControlEnabled)
                 Toggle("Nettoyage IA du texte (ponctuation, hésitations)", isOn: $settings.cleanupEnabled)

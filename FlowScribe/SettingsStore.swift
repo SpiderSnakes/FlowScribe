@@ -1,6 +1,19 @@
 import SwiftUI
 import FlowScribeCore
 
+/// Style de la fenêtre d'enregistrement (HUD).
+enum RecordingWindowStyle: String, CaseIterable, Identifiable, Sendable {
+    case classic, mini, none
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .classic: return "Classic"
+        case .mini: return "Mini"
+        case .none: return "Aucune"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsStore {
@@ -30,6 +43,10 @@ final class SettingsStore {
     var hasSeenOnboarding: Bool {
         didSet { defaults.set(hasSeenOnboarding, forKey: "hasSeenOnboarding") }
     }
+    /// Style de la fenêtre d'enregistrement (HUD).
+    var recordingWindowStyle: RecordingWindowStyle {
+        didSet { defaults.set(recordingWindowStyle.rawValue, forKey: "recordingWindowStyle"); onChange?() }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -40,6 +57,7 @@ final class SettingsStore {
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
         self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
+        self.recordingWindowStyle = RecordingWindowStyle(rawValue: defaults.string(forKey: "recordingWindowStyle") ?? "") ?? .classic
     }
 
     func apiKey(for provider: EngineProvider) -> String {
