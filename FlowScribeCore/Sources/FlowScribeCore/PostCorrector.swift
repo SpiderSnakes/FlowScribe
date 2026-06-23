@@ -6,8 +6,9 @@ public struct PostCorrector: Sendable {
 
     public func correct(_ text: String, engineId: String) -> String {
         var result = text
-        // Règles les plus longues d'abord (les phrases avant les mots isolés).
-        let rules = store.rules(for: engineId).sorted { $0.heard.count > $1.heard.count }
+        // Règles globales + propres au moteur, actives uniquement, les plus longues d'abord.
+        let combined = store.rules(for: CorrectionScope.global) + store.rules(for: engineId)
+        let rules = combined.filter { $0.enabled }.sorted { $0.heard.count > $1.heard.count }
         for rule in rules {
             result = replace(rule.heard, with: rule.replacement, in: result)
         }

@@ -19,7 +19,7 @@ public final class InMemoryCorrectionProfileStore: CorrectionProfileStore, @unch
     public func add(_ rule: CorrectionRule, for engineId: String) {
         lock.lock(); defer { lock.unlock() }
         var arr = byEngine[engineId] ?? []
-        if !arr.contains(rule) { arr.append(rule) }
+        if !arr.contains(where: { $0.heard.caseInsensitiveCompare(rule.heard) == .orderedSame }) { arr.append(rule) }
         byEngine[engineId] = arr
     }
 }
@@ -48,7 +48,7 @@ public final class JSONCorrectionProfileStore: CorrectionProfileStore, @unchecke
     public func add(_ rule: CorrectionRule, for engineId: String) {
         lock.lock()
         var arr = byEngine[engineId] ?? []
-        if !arr.contains(rule) { arr.append(rule) }
+        if !arr.contains(where: { $0.heard.caseInsensitiveCompare(rule.heard) == .orderedSame }) { arr.append(rule) }
         byEngine[engineId] = arr
         lock.unlock(); persist()
     }

@@ -8,12 +8,21 @@ struct VocabularyView: View {
     @State private var showCalibration = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            GlossaryView(glossary: glossary, profiles: profiles)
-            Divider()
-            Button("Calibrer un moteur") { showCalibration = true }
-                .buttonStyle(.glass)
-                .padding(10)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                GlossaryView(glossary: glossary)
+                Divider()
+                RulesEditorView(profiles: profiles)
+                Divider()
+                HStack {
+                    Button("Calibrer un moteur") { showCalibration = true }
+                        .buttonStyle(.glass)
+                    Text("Lis une phrase à voix haute pour apprendre des corrections automatiquement.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: $showCalibration) {
