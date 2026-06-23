@@ -37,6 +37,7 @@ struct FlowScribeApp: App {
             }
         }
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
+            SettingsLink { Text("Réglages…") }
             Button("Quitter") { NSApplication.shared.terminate(nil) }
         }
     }
@@ -53,11 +54,14 @@ struct FlowScribeApp: App {
             output: SystemTextOutput(),
             locale: Locale(identifier: settings.localeIdentifier)
         )
+        Self.applyOptions(to: c, settings: settings)
         controller = c
         bridge = HotkeyBridge(controller: c, hud: RecordingHUD())
         settings.onChange = { [weak c, settings, profiles] in
-            c?.configure(service: Self.makeService(from: settings, profiles: profiles),
-                         locale: Locale(identifier: settings.localeIdentifier))
+            guard let c else { return }
+            c.configure(service: Self.makeService(from: settings, profiles: profiles),
+                        locale: Locale(identifier: settings.localeIdentifier))
+            Self.applyOptions(to: c, settings: settings)
         }
     }
 
@@ -68,5 +72,28 @@ struct FlowScribeApp: App {
         let provider = settings.defaultProvider
         let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider), transport: transport) ?? apple
         return TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
+    }
+
+    @MainActor
+    private static func applyOptions(to c: DictationController, settings: SettingsStore) {
+        c.mediaController = MediaController(player: AppleScriptMediaPlayer(), enabled: settings.musicControlEnabled)
+        c.cleanup = makeCleanup(settings)
+    }
+
+    @MainActor
+    private static func makeCleanup(_ settings: SettingsStore) -> ((String) async -> String)? {
+        guard settings.cleanupEnabled else { return nil }
+        let transport = URLSessionTransport()
+        let mistral = settings.apiKey(for: .mistral)
+        if !mistral.isEmpty {
+            let svc = AICleanupService(config: .mistral, apiKey: mistral, transport: transport)
+            return { (try? await svc.cleanup($0)) ?? $0 }
+        }
+        let openai = settings.apiKey(for: .openAI)
+        if !openai.isEmpty {
+            let svc = AICleanupService(config: .openAI, apiKey: openai, transport: transport)
+            return { (try? await svc.cleanup($0)) ?? $0 }
+        }
+        return nil
     }
 }

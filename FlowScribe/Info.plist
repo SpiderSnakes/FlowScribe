@@ -22,6 +22,8 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>FlowScribe met votre musique (Music/Spotify) en pause pendant la dictée.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>FlowScribe a besoin du micro pour transcrire votre voix.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

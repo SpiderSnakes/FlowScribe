@@ -45,6 +45,15 @@ struct SettingsView: View {
                 TextField("Identifiant de langue (ex. fr-FR)", text: $settings.localeIdentifier)
             }
 
+            Section("Confort") {
+                Toggle("Mettre la musique en pause pendant la dictée", isOn: $settings.musicControlEnabled)
+                Toggle("Nettoyage IA du texte (ponctuation, hésitations)", isOn: $settings.cleanupEnabled)
+                if settings.cleanupEnabled {
+                    Text("Utilise ta clé Mistral (sinon OpenAI). Ajoute un court délai après la dictée.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             Section("Autorisations") {
                 permissionRow("Micro", ok: permissions.mic == .granted)
                 permissionRow("Reconnaissance vocale", ok: permissions.speech == .granted)

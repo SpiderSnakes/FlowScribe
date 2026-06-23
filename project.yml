@@ -42,3 +42,4 @@ targets:
         LSMinimumSystemVersion: "26.0"
         NSMicrophoneUsageDescription: "FlowScribe a besoin du micro pour transcrire votre voix."
         NSSpeechRecognitionUsageDescription: "FlowScribe utilise la reconnaissance vocale locale de macOS pour transcrire vos dictées."
+        NSAppleEventsUsageDescription: "FlowScribe met votre musique (Music/Spotify) en pause pendant la dictée."
