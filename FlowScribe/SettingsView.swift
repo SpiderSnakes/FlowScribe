@@ -80,6 +80,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .background(GrainientBackground())
         .buttonStyle(.glass)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
