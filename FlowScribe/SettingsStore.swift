@@ -23,24 +23,35 @@ final class SettingsStore {
 
     /// Notifié quand un réglage affectant le pipeline change → reconstruction à chaud.
     @ObservationIgnored var onChange: (@MainActor () -> Void)?
+    @ObservationIgnored private var batching = false
+
+    /// Applique plusieurs mutations en ne notifiant `onChange` qu'une seule fois à la fin
+    /// (ex. activer un mode = 6 réglages → 1 seule reconstruction du pipeline).
+    func applyBatch(_ mutations: () -> Void) {
+        batching = true
+        mutations()
+        batching = false
+        onChange?()
+    }
+    private func notifyChange() { if !batching { onChange?() } }
 
     var defaultProvider: EngineProvider {
-        didSet { defaults.set(defaultProvider.rawValue, forKey: "defaultProvider"); onChange?() }
+        didSet { defaults.set(defaultProvider.rawValue, forKey: "defaultProvider"); notifyChange() }
     }
     var localeIdentifier: String {
-        didSet { defaults.set(localeIdentifier, forKey: "localeIdentifier"); onChange?() }
+        didSet { defaults.set(localeIdentifier, forKey: "localeIdentifier"); notifyChange() }
     }
     var musicControlEnabled: Bool {
-        didSet { defaults.set(musicControlEnabled, forKey: "musicControlEnabled"); onChange?() }
+        didSet { defaults.set(musicControlEnabled, forKey: "musicControlEnabled"); notifyChange() }
     }
     var cleanupEnabled: Bool {
-        didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); onChange?() }
+        didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); notifyChange() }
     }
     /// Prompt de reformulation IA (alimenté par le mode actif).
     var cleanupPrompt: String {
-        didSet { defaults.set(cleanupPrompt, forKey: "cleanupPrompt"); onChange?() }
+        didSet { defaults.set(cleanupPrompt, forKey: "cleanupPrompt"); notifyChange() }
     }
-    static let defaultCleanupPrompt = "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
+    static let defaultCleanupPrompt = AICleanupService.defaultPrompt
     /// Rétention de l'historique en jours (0 = illimité).
     var retentionDays: Int {
         didSet { defaults.set(retentionDays, forKey: "retentionDays") }
@@ -51,11 +62,11 @@ final class SettingsStore {
     }
     /// Style de la fenêtre d'enregistrement (HUD).
     var recordingWindowStyle: RecordingWindowStyle {
-        didSet { defaults.set(recordingWindowStyle.rawValue, forKey: "recordingWindowStyle"); onChange?() }
+        didSet { defaults.set(recordingWindowStyle.rawValue, forKey: "recordingWindowStyle"); notifyChange() }
     }
     /// UID du micro choisi (vide = micro système par défaut).
     var selectedMicrophoneUID: String {
-        didSet { defaults.set(selectedMicrophoneUID, forKey: "selectedMicrophoneUID"); onChange?() }
+        didSet { defaults.set(selectedMicrophoneUID, forKey: "selectedMicrophoneUID"); notifyChange() }
     }
     /// Repères sonores au début/à la fin de l'enregistrement.
     var soundEffectsEnabled: Bool {
@@ -95,10 +106,12 @@ final class SettingsStore {
         return secrets.get(key) ?? ""
     }
 
-    func setAPIKey(_ value: String, for provider: EngineProvider) {
-        guard let key = provider.secretKey else { return }
-        secrets.set(value.isEmpty ? nil : value, for: key)
-        onChange?()
+    @discardableResult
+    func setAPIKey(_ value: String, for provider: EngineProvider) -> Bool {
+        guard let key = provider.secretKey else { return false }
+        let ok = secrets.set(value.isEmpty ? nil : value, for: key)
+        notifyChange()
+        return ok
     }
 
     func selectedModelId(for provider: EngineProvider) -> String {
@@ -107,6 +120,6 @@ final class SettingsStore {
 
     func setModel(_ id: String, for provider: EngineProvider) {
         defaults.set(id, forKey: "model.\(provider.rawValue)")
-        onChange?()
+        notifyChange()
     }
 }

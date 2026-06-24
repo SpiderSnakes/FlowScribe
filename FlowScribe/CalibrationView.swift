@@ -15,7 +15,7 @@ struct CalibrationView: View {
     @State private var recorder = MicrophoneRecorder(outputDirectory: URL.temporaryDirectory.appending(path: "FlowScribeCalibration"))
 
     private var provider: EngineProvider { settings.defaultProvider }
-    private var engineId: String { provider.config?.id ?? "apple.local" }
+    private var engineId: String { provider.engineId }
 
     private var reference: String {
         let terms = glossary.terms

@@ -82,12 +82,14 @@ struct FlowScribeApp: App {
     /// Active un mode : applique ses valeurs au SettingsStore (qui pilote le pipeline).
     @MainActor
     private func applyMode(_ mode: Mode) {
-        settings.defaultProvider = mode.provider
-        settings.setModel(mode.modelId, for: mode.provider)
-        settings.localeIdentifier = mode.localeIdentifier
-        settings.musicControlEnabled = mode.pauseMusic
-        settings.cleanupEnabled = (mode.cleanupPrompt != nil)
-        if let prompt = mode.cleanupPrompt { settings.cleanupPrompt = prompt }
+        settings.applyBatch {   // 6 réglages → une seule reconstruction du pipeline
+            settings.defaultProvider = mode.provider
+            settings.setModel(mode.modelId, for: mode.provider)
+            settings.localeIdentifier = mode.localeIdentifier
+            settings.musicControlEnabled = mode.pauseMusic
+            settings.cleanupEnabled = (mode.cleanupPrompt != nil)
+            if let prompt = mode.cleanupPrompt { settings.cleanupPrompt = prompt }
+        }
         modes.setActive(mode.id)
     }
 

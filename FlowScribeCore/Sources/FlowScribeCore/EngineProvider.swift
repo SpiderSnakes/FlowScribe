@@ -55,6 +55,9 @@ public enum EngineProvider: String, CaseIterable, Sendable, Codable {
 
     public var defaultModelId: String { models.first?.id ?? "" }
 
+    /// Identifiant de moteur utilisé comme clé des profils de correction (= `id` runtime du moteur).
+    public var engineId: String { config?.id ?? "apple.local" }
+
     /// Construit le moteur avec le modèle choisi. Renvoie nil si une clé est requise mais absente.
     public func makeEngine(apiKey: String?, modelId: String? = nil, transport: Transport) -> TranscriptionEngine? {
         if self == .appleLocal { return AppleSpeechEngine() }

@@ -15,4 +15,6 @@ enum Theme {
     static let hairline = Color.white.opacity(0.14)
     /// Teinte sombre translucide du HUD (foncé mais on voit à travers).
     static let glassTint = deepNight.opacity(0.45)
+    /// Fond quasi opaque très sombre du HUD d'enregistrement (fort contraste avec les barres).
+    static let hudPanelFill = Color(red: 0.03, green: 0.05, blue: 0.10).opacity(0.92)
 }

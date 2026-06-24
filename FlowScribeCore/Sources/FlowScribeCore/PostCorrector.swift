@@ -15,14 +15,24 @@ public struct PostCorrector: Sendable {
         return result
     }
 
-    /// Remplacement insensible à la casse, ancré sur des frontières de mots.
+    /// Remplacement insensible à la casse. Tolère plusieurs espaces/sauts de ligne entre les
+    /// mots, et n'ancre `\b` que du côté où le terme commence/finit par un caractère de mot
+    /// (sinon « .NET », « c++ », « node.js » ne seraient jamais corrigés).
     private func replace(_ heard: String, with replacement: String, in text: String) -> String {
-        let escaped = NSRegularExpression.escapedPattern(for: heard)
-        guard let regex = try? NSRegularExpression(pattern: "\\b\(escaped)\\b", options: [.caseInsensitive]) else {
+        let trimmed = heard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return text }
+        // Échappe le terme puis autorise toute séquence d'espaces blancs entre les mots.
+        let escaped = NSRegularExpression.escapedPattern(for: trimmed)
+            .replacingOccurrences(of: " ", with: "\\s+")
+        let leading = (trimmed.first.map(Self.isWordChar) ?? false) ? "\\b" : ""
+        let trailing = (trimmed.last.map(Self.isWordChar) ?? false) ? "\\b" : ""
+        guard let regex = try? NSRegularExpression(pattern: "\(leading)\(escaped)\(trailing)", options: [.caseInsensitive]) else {
             return text
         }
         let range = NSRange(text.startIndex..., in: text)
         let template = NSRegularExpression.escapedTemplate(for: replacement)
         return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: template)
     }
+
+    private static func isWordChar(_ c: Character) -> Bool { c.isLetter || c.isNumber }
 }

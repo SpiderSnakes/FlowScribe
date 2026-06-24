@@ -14,8 +14,13 @@ struct RootView: View {
     let onActivateMode: (Mode) -> Void
 
     @State private var section: AppSection = .accueil
-    @State private var micName = "Micro système"
     @State private var micDevices: [AudioInputDevice] = []
+
+    /// Nom du micro actif, dérivé de la liste déjà chargée (pas de ré-énumération CoreAudio).
+    private var micName: String {
+        settings.selectedMicrophoneUID.isEmpty ? "Micro système"
+            : (micDevices.first { $0.id == settings.selectedMicrophoneUID }?.name ?? "Micro")
+    }
 
     var body: some View {
         NavigationSplitView {
@@ -56,13 +61,9 @@ struct RootView: View {
                         .frame(height: 10).offset(y: 10).allowsHitTesting(false)
                 }
             }
-            .onAppear {
-                micDevices = CoreAudioDevices.inputDevices()
-                micName = settings.selectedMicrophoneUID.isEmpty ? "Micro système"
-                    : (CoreAudioDevices.name(forUID: settings.selectedMicrophoneUID) ?? "Micro")
-            }
-            .onChange(of: settings.selectedMicrophoneUID) { _, uid in
-                micName = uid.isEmpty ? "Micro système" : (CoreAudioDevices.name(forUID: uid) ?? "Micro")
+            .task {
+                // énumération CoreAudio hors du thread principal (AudioInputDevice est Sendable)
+                micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value
             }
         }
         .tint(Theme.accent)

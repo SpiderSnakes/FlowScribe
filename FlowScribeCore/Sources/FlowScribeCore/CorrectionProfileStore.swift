@@ -55,6 +55,6 @@ public final class JSONCorrectionProfileStore: CorrectionProfileStore, @unchecke
     private func persist() {
         lock.lock(); let snapshot = byEngine; lock.unlock()
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: url) }
+        if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: url, options: .atomic) }
     }
 }

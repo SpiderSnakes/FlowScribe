@@ -20,9 +20,8 @@ struct RulesEditorView: View {
     @State private var newReplacement = ""
     @State private var newScope = CorrectionScope.global
 
-    private func engineId(_ p: EngineProvider) -> String { p.config?.id ?? "apple.local" }
     private var scopes: [(key: String, label: String)] {
-        [(CorrectionScope.global, "Toutes (global)")] + EngineProvider.allCases.map { (engineId($0), $0.displayName) }
+        [(CorrectionScope.global, "Toutes (global)")] + EngineProvider.allCases.map { ($0.engineId, $0.displayName) }
     }
     private func label(for key: String) -> String { scopes.first { $0.key == key }?.label ?? key }
 

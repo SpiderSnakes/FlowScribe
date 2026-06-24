@@ -48,6 +48,6 @@ public final class JSONHistoryStore: HistoryStore, @unchecked Sendable {
         lock.lock(); let snap = storage; lock.unlock()
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601
-        if let data = try? enc.encode(snap) { try? data.write(to: url) }
+        if let data = try? enc.encode(snap) { try? data.write(to: url, options: .atomic) }
     }
 }

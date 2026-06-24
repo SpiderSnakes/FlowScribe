@@ -12,7 +12,7 @@ struct APIKeysPanel: View {
     @State private var keyDraft = ""
     @State private var result: KeyTestResult?
     @State private var testing = false
-    @State private var saved = false
+    @State private var saveResult: Bool?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -40,8 +40,10 @@ struct APIKeysPanel: View {
 
             if let msg = message {
                 Text(msg).font(.caption).foregroundStyle(result?.ok == true ? .green : .orange)
-            } else if saved {
+            } else if saveResult == true {
                 Text("Clé enregistrée dans le Trousseau.").font(.caption).foregroundStyle(.secondary)
+            } else if saveResult == false {
+                Text("Échec de l'enregistrement dans le Trousseau.").font(.caption).foregroundStyle(.orange)
             }
 
             HStack(spacing: 8) {
@@ -88,18 +90,17 @@ struct APIKeysPanel: View {
     private func load() {
         keyDraft = settings.apiKey(for: provider)
         result = nil
-        saved = false
+        saveResult = nil
     }
 
     private func save() {
-        settings.setAPIKey(keyDraft, for: provider)
-        saved = true
+        saveResult = settings.setAPIKey(keyDraft, for: provider)
     }
 
     private func test() {
         guard let config = provider.config else { return }
         let value = keyDraft
-        result = nil; saved = false; testing = true
+        result = nil; saveResult = nil; testing = true
         Task {
             let engine = CloudTranscriptionEngine(config: config, apiKey: value, transport: URLSessionTransport())
             result = await engine.validateKey()

@@ -109,43 +109,45 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(states, [.recording, .transcribing, .idle])
     }
 
-    func test_cancel_duringRecording_idle_noDelivery_firesOnCancel() {
-        let (c, _, out) = makeController()
+    func test_cancel_duringRecording_idle_noDelivery_firesOnCancel() async {
+        let (c, rec, out) = makeController()
         var cancelled = false
         c.onCancel = { cancelled = true }
         c.pressDown()
         XCTAssertEqual(c.state, .recording)
-        c.cancel()
+        await c.cancel()
         XCTAssertEqual(c.state, .idle)
         XCTAssertTrue(cancelled)
         XCTAssertEqual(out.delivered, [])
+        XCTAssertEqual(rec.stopCount, 1)   // l'arrêt micro est terminé avant le retour de cancel()
     }
 
-    func test_cancel_resumesMedia() {
+    func test_cancel_resumesMedia() async {
         let (c, _, _) = makeController()
         let player = SpyPlayer(playing: [.spotify])
         c.mediaController = MediaController(player: player, enabled: true)
         c.pressDown()
         XCTAssertEqual(player.paused, [.spotify])
-        c.cancel()
+        await c.cancel()
         XCTAssertEqual(player.resumed, [.spotify])
     }
 
-    func test_cancel_fromIdle_isNoOp() {
-        let (c, _, _) = makeController()
+    func test_cancel_fromIdle_isNoOp() async {
+        let (c, rec, _) = makeController()
         var cancelled = false
         c.onCancel = { cancelled = true }
-        c.cancel()
+        await c.cancel()
         XCTAssertEqual(c.state, .idle)
         XCTAssertFalse(cancelled)
+        XCTAssertEqual(rec.stopCount, 0)
     }
 
-    func test_cancel_duringRecording_doesNotFireOnFinish() {
+    func test_cancel_duringRecording_doesNotFireOnFinish() async {
         let (c, _, _) = makeController()
         var finished = false
         c.onFinish = { _ in finished = true }
         c.pressDown()
-        c.cancel()
+        await c.cancel()
         XCTAssertFalse(finished)
     }
 }

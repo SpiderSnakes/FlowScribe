@@ -25,8 +25,6 @@ final class HUDModel {
 struct LiveHUDView: View {
     let model: HUDModel
 
-    private let panelFill = Color(red: 0.03, green: 0.05, blue: 0.10).opacity(0.92)
-
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
@@ -40,20 +38,18 @@ struct LiveHUDView: View {
                 let maxH = size.height * 0.82
                 let recording = model.state == .recording
                 for i in 0..<bars {
-                    let gained = recording ? min(1.0, pow(model.level, 0.55) * 2.6) : 0.0
+                    let gained = recording ? HUDWaveform.gain(model.level) : 0.0
                     let shimmer = 0.85 + 0.15 * sin(t * 5.0 + Double(i) * 0.6)
                     let idle = 0.12 + 0.07 * sin(t * 2.2 + Double(i) * 0.45)
                     let frac = max(idle, gained * shimmer)
                     let h = max(4, maxH * CGFloat(frac))
                     let x = startX + CGFloat(i) * (barW + gap)
                     let rect = CGRect(x: x, y: midY - h / 2, width: barW, height: h)
-                    let bright = 0.24 + 0.64 * frac
-                    let color = Color(red: 0.70 + 0.30 * frac, green: 0.80 + 0.18 * frac, blue: 1.0).opacity(bright)
-                    ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(color))
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(HUDWaveform.barColor(frac: frac)))
                 }
             }
             .frame(width: 240, height: 56)
-            .background(panelFill, in: Capsule())
+            .background(Theme.hudPanelFill, in: Capsule())
             .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
             .shadow(color: .black.opacity(0.45), radius: 14, y: 6)

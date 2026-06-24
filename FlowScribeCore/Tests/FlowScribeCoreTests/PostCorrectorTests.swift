@@ -56,6 +56,31 @@ final class PostCorrectorTests: XCTestCase {
         XCTAssertEqual(rules.first, CorrectionRule(heard: "doi", replacement: "Dokploy", enabled: false))
     }
 
+    func test_postCorrector_multipleSpacesBetweenTokens() {
+        let store = InMemoryCorrectionProfileStore()
+        store.add(CorrectionRule(heard: "doc ploy", replacement: "Dokploy"), for: "apple.local")
+        let pc = PostCorrector(store: store)
+        XCTAssertEqual(pc.correct("déployer sur Doc  Ploy demain", engineId: "apple.local"),
+                       "déployer sur Dokploy demain")
+    }
+
+    func test_postCorrector_termEndingWithNonWordChar() {
+        let store = InMemoryCorrectionProfileStore()
+        store.add(CorrectionRule(heard: "c#", replacement: "C Sharp"), for: "apple.local")
+        let pc = PostCorrector(store: store)
+        // « c# » se termine par un caractère non-mot : doit quand même être trouvé et remplacé
+        XCTAssertEqual(pc.correct("j'écris en c# ici", engineId: "apple.local"),
+                       "j'écris en C Sharp ici")
+    }
+
+    func test_postCorrector_termStartingWithDot() {
+        let store = InMemoryCorrectionProfileStore()
+        store.add(CorrectionRule(heard: ".net", replacement: ".NET"), for: "apple.local")
+        let pc = PostCorrector(store: store)
+        XCTAssertEqual(pc.correct("framework .net utilisé", engineId: "apple.local"),
+                       "framework .NET utilisé")
+    }
+
     func test_correctionRule_decodesLegacyJSON_enabledDefaultsTrue() throws {
         let legacy = Data(#"{"heard":"doi","replacement":"Dokploy"}"#.utf8)
         let rule = try JSONDecoder().decode(CorrectionRule.self, from: legacy)

@@ -70,12 +70,14 @@ public final class DictationController {
     }
 
     /// Annule la dictée en cours (Échap) : ni transcription, ni collage. Idempotent depuis idle.
-    public func cancel() {
+    /// `async` : on attend l'arrêt réel du micro AVANT de libérer l'état, sinon un nouveau
+    /// `start()` immédiat pourrait croiser le `stop()` différé (tap retiré → dictée vide).
+    public func cancel() async {
         guard state != .idle else { return }
         transcriptionTask?.cancel()
         transcriptionTask = nil
         if state == .recording {
-            Task { _ = await recorder.stop() }   // arrête le micro, jette l'audio
+            _ = await recorder.stop()   // arrête le micro, jette l'audio — terminé avant .idle
         }
         lastTranscript = nil
         setState(.idle)

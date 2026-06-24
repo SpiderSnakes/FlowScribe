@@ -35,11 +35,7 @@ struct SettingsView: View {
 
             Section {
                 Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
-                    Text("1 jour").tag(1)
-                    Text("1 semaine").tag(7)
-                    Text("15 jours").tag(15)
-                    Text("30 jours").tag(30)
-                    Text("Toujours").tag(0)
+                    ForEach(RetentionOption.all) { Text($0.title).tag($0.days) }
                 }
             } header: { Text("Conservation") }
 
@@ -64,8 +60,10 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             permissions.refresh()
-            micDevices = CoreAudioDevices.inputDevices()
-            if ![1, 7, 15, 30, 0].contains(settings.retentionDays) { settings.retentionDays = 30 }
+            if !RetentionOption.dayValues.contains(settings.retentionDays) { settings.retentionDays = 30 }
+        }
+        .task {
+            micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value
         }
     }
 

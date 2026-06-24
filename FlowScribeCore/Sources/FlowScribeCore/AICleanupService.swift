@@ -16,6 +16,9 @@ public struct CleanupConfig: Sendable {
 public enum AICleanupError: Error { case httpError(Int), badResponse }
 
 public struct AICleanupService: Sendable {
+    /// Prompt de reformulation par défaut (source unique, réexportée par l'app).
+    public static let defaultPrompt = "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
+
     private let config: CleanupConfig
     private let apiKey: String
     private let transport: Transport
@@ -25,7 +28,7 @@ public struct AICleanupService: Sendable {
 
     /// Nettoie/reformule le texte. `instruction` permet un prompt propre au mode (nil = prompt par défaut).
     public func cleanup(_ text: String, instruction: String? = nil) async throws -> String {
-        let system = instruction ?? "Corrige la ponctuation et la casse, retire les hésitations (euh, hum) et les répétitions, SANS changer le sens ni la langue. Réponds UNIQUEMENT le texte corrigé."
+        let system = instruction ?? Self.defaultPrompt
         let payload: [String: Any] = [
             "model": config.model,
             "messages": [

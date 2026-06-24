@@ -44,12 +44,12 @@ final class HotkeyBridge {
     private func registerEscape() {
         localEscMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return event }
-            self.controller.cancel()
+            Task { await self.controller.cancel() }
             return nil   // consomme l'Échap (n'annule pas une feuille/un champ par-dessus)
         }
         globalEscMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return }
-            self.controller.cancel()
+            Task { await self.controller.cancel() }
         }
     }
 }
