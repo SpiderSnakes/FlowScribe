@@ -27,6 +27,8 @@ final class RecordingHUD {
     private var showingResult = false
     /// Style de fenêtre choisi (mis à jour depuis les réglages).
     var style: RecordingWindowStyle = .classic
+    /// Palette + intensité de l'ambiance (injectée dans le NSHostingView côté HUD).
+    var ambiance = Ambiance(palette: BrandPalette(.nuitBleue), intensity: .equilibre)
     private var liveStyle: RecordingWindowStyle?
 
     func show(state: DictationState) {
@@ -64,10 +66,10 @@ final class RecordingHUD {
             let size: NSSize
             switch style {
             case .classic:
-                panel.contentView = clearHosting(AnyView(ClassicHUDView(model: model)))
+                panel.contentView = clearHosting(AnyView(ClassicHUDView(model: model).environment(\.ambiance, ambiance)))
                 size = NSSize(width: 412, height: 120)
             case .mini:
-                panel.contentView = clearHosting(AnyView(LiveHUDView(model: model)))
+                panel.contentView = clearHosting(AnyView(LiveHUDView(model: model).environment(\.ambiance, ambiance)))
                 size = NSSize(width: 280, height: 88)
             case .none:
                 return

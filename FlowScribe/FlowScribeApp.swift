@@ -127,6 +127,7 @@ struct FlowScribeApp: App {
         recorder.preferredDeviceUID = settings.selectedMicrophoneUID
         let hud = RecordingHUD()
         hud.style = settings.recordingWindowStyle
+        hud.ambiance = Ambiance(palette: BrandPalette(settings.ambiancePalette), intensity: settings.ambianceIntensity)
         recorder.onLevel = { level in
             Task { @MainActor in hud.setLevel(level) }
         }
@@ -166,6 +167,7 @@ struct FlowScribeApp: App {
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)
             hud.style = settings.recordingWindowStyle
+            hud.ambiance = Ambiance(palette: BrandPalette(settings.ambiancePalette), intensity: settings.ambianceIntensity)
             recorder.preferredDeviceUID = settings.selectedMicrophoneUID
         }
     }

@@ -5,6 +5,7 @@ import FlowScribeCore
 /// vivante (60fps, gain + shimmer + respiration au repos) + rappel des raccourcis.
 struct ClassicHUDView: View {
     let model: HUDModel
+    @Environment(\.ambiance) private var ambiance
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +22,7 @@ struct ClassicHUDView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Theme.hairline, lineWidth: 1))
         .shadow(color: .black.opacity(0.45), radius: 16, y: 6)
+        .borderGlow(active: model.state == .recording, cornerRadius: 18)
     }
 
     /// Maillage de lignes horizontales sinueuses (gris/blanc, opacités dégradées) : au repos
@@ -60,7 +62,7 @@ struct ClassicHUDView: View {
                         if s == 0 { path.move(to: point) } else { path.addLine(to: point) }
                     }
                     ctx.stroke(path,
-                               with: .color(HUDWaveform.lineColor(index: j, of: lineCount, level: level)),
+                               with: .color(HUDWaveform.lineColor(index: j, of: lineCount, level: level, accents: ambiance.palette.auroraColors)),
                                lineWidth: CGFloat(1.8 - 0.12 * Double(j)))
                 }
             }

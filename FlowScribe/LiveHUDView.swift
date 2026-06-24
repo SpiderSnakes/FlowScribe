@@ -52,6 +52,7 @@ final class HUDModel {
 
 struct LiveHUDView: View {
     let model: HUDModel
+    @Environment(\.ambiance) private var ambiance
 
     var body: some View {
         TimelineView(.animation) { timeline in
@@ -74,7 +75,8 @@ struct LiveHUDView: View {
                     let h = max(4, maxH * CGFloat(frac))
                     let x = startX + CGFloat(i) * (barW + gap)
                     let rect = CGRect(x: x, y: midY - h / 2, width: barW, height: h)
-                    ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(HUDWaveform.barColor(frac: frac)))
+                    let accent = ambiance.palette.accentPrimary
+                    ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(accent.opacity(0.22 + 0.66 * frac)))
                 }
             }
             .frame(width: 240, height: 56)
