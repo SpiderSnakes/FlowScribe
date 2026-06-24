@@ -30,6 +30,8 @@ struct FlowScribeApp: App {
                 }
             }
             .frame(minWidth: 720, minHeight: 480)
+            .environment(\.ambiance, Ambiance(palette: BrandPalette(settings.ambiancePalette),
+                                              intensity: settings.ambianceIntensity))
             .task { await setup() }
         }
         .windowStyle(.hiddenTitleBar)   // pas de grand bandeau « FlowScribe » ; pastilles superposées

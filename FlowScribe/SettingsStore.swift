@@ -72,6 +72,14 @@ final class SettingsStore {
     var recordingWindowStyle: RecordingWindowStyle {
         didSet { defaults.set(recordingWindowStyle.rawValue, forKey: "recordingWindowStyle"); notifyChange() }
     }
+    /// Palette du rebranding (pilote les accents : aurores, fils, halos).
+    var ambiancePalette: AmbiancePalette {
+        didSet { defaults.set(ambiancePalette.rawValue, forKey: "ambiancePalette") }
+    }
+    /// Intensité des effets animés du rebranding.
+    var ambianceIntensity: AmbianceIntensity {
+        didSet { defaults.set(ambianceIntensity.rawValue, forKey: "ambianceIntensity") }
+    }
     /// UID du micro choisi (vide = micro système par défaut).
     var selectedMicrophoneUID: String {
         didSet { defaults.set(selectedMicrophoneUID, forKey: "selectedMicrophoneUID"); notifyChange() }
@@ -105,6 +113,8 @@ final class SettingsStore {
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
         self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
         self.recordingWindowStyle = RecordingWindowStyle(rawValue: defaults.string(forKey: "recordingWindowStyle") ?? "") ?? .classic
+        self.ambiancePalette = AmbiancePalette(rawValue: defaults.string(forKey: "ambiancePalette") ?? "") ?? .nuitBleue
+        self.ambianceIntensity = AmbianceIntensity(rawValue: defaults.string(forKey: "ambianceIntensity") ?? "") ?? .equilibre
         self.selectedMicrophoneUID = defaults.string(forKey: "selectedMicrophoneUID") ?? ""
         self.soundEffectsEnabled = defaults.bool(forKey: "soundEffectsEnabled")
         self.launchAtLogin = LaunchAtLogin.isEnabled
