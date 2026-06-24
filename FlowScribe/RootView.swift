@@ -15,6 +15,7 @@ struct RootView: View {
 
     @State private var section: AppSection = .accueil
     @State private var micName = "Micro système"
+    @State private var micDevices: [AudioInputDevice] = []
 
     var body: some View {
         NavigationSplitView {
@@ -25,16 +26,32 @@ struct RootView: View {
                 VisualEffectBackground(material: .sidebar).ignoresSafeArea()
                 detailContent
             }
-            .overlay(alignment: .topTrailing) {
-                HStack(spacing: 5) {
-                    Image(systemName: "mic.fill").font(.system(size: 10))
-                    Text(micName).font(.system(size: 11, weight: .medium))
+            .safeAreaInset(edge: .top) {
+                HStack {
+                    Spacer()
+                    Menu {
+                        Button { settings.selectedMicrophoneUID = "" } label: {
+                            Label("Système (par défaut)", systemImage: settings.selectedMicrophoneUID.isEmpty ? "checkmark" : "mic")
+                        }
+                        ForEach(micDevices) { d in
+                            Button { settings.selectedMicrophoneUID = d.id } label: {
+                                Label(d.name, systemImage: settings.selectedMicrophoneUID == d.id ? "checkmark" : "mic")
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "mic.fill").font(.system(size: 10))
+                            Text(micName).font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
                 }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .padding(.top, 6).padding(.trailing, 12)
+                .padding(.horizontal, 12).padding(.vertical, 6)
             }
             .onAppear {
+                micDevices = CoreAudioDevices.inputDevices()
                 micName = settings.selectedMicrophoneUID.isEmpty ? "Micro système"
                     : (CoreAudioDevices.name(forUID: settings.selectedMicrophoneUID) ?? "Micro")
             }
