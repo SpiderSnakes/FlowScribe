@@ -82,7 +82,7 @@ struct RootView: View {
         case .corrections:
             CorrectionsView(profiles: profiles)
         case .calibration:
-            CalibrationSectionView(glossary: glossary, profiles: profiles, settings: settings)
+            CalibrationSectionView(glossary: glossary, profiles: profiles, settings: settings, history: history)
         case .reglages:
             SettingsView(settings: settings, permissions: permissions, history: history)
         }
