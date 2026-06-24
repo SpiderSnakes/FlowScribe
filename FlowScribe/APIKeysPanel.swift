@@ -58,6 +58,7 @@ struct APIKeysPanel: View {
             }
         }
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+        .borderGlow(active: isEditing, cornerRadius: 10)
     }
 
     @ViewBuilder

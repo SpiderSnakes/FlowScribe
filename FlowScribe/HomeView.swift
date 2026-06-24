@@ -37,6 +37,7 @@ struct HomeView: View {
                     Label("Dicter", systemImage: "mic.fill")
                 }
                 .buttonStyle(.glassProminent)
+                .borderGlow(cornerRadius: 10)
                 .help("Dicter (⌥Espace)")
             }
 
@@ -92,6 +93,7 @@ struct HomeView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10).padding(.vertical, 6)
             .background(Color.primary.opacity(0.06), in: Capsule())
+            .borderGlow(active: true, cornerRadius: 20)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
