@@ -82,13 +82,19 @@ struct FlowScribeApp: App {
     /// Active un mode : applique ses valeurs au SettingsStore (qui pilote le pipeline).
     @MainActor
     private func applyMode(_ mode: Mode) {
-        settings.applyBatch {   // 6 réglages → une seule reconstruction du pipeline
+        settings.applyBatch {   // plusieurs réglages → une seule reconstruction du pipeline
             settings.defaultProvider = mode.provider
             settings.setModel(mode.modelId, for: mode.provider)
             settings.localeIdentifier = mode.localeIdentifier
             settings.musicControlEnabled = mode.pauseMusic
-            settings.cleanupEnabled = (mode.cleanupPrompt != nil)
-            if let prompt = mode.cleanupPrompt { settings.cleanupPrompt = prompt }
+            if let r = mode.reformulation {
+                settings.cleanupEnabled = true
+                settings.cleanupProvider = r.provider
+                settings.cleanupModelId = r.modelId
+                settings.cleanupPrompt = r.prompt
+            } else {
+                settings.cleanupEnabled = false
+            }
         }
         modes.setActive(mode.id)
     }
@@ -103,7 +109,7 @@ struct FlowScribeApp: App {
             let m = Mode(name: "Par défaut", provider: settings.defaultProvider,
                          modelId: settings.selectedModelId(for: settings.defaultProvider),
                          localeIdentifier: settings.localeIdentifier, pauseMusic: settings.musicControlEnabled,
-                         cleanupPrompt: settings.cleanupEnabled ? settings.cleanupPrompt : nil)
+                         reformulation: nil)
             modes.upsert(m)
             modes.setActive(m.id)
         }
@@ -168,19 +174,13 @@ struct FlowScribeApp: App {
     @MainActor
     private static func makeCleanup(_ settings: SettingsStore) -> ((String) async -> String)? {
         guard settings.cleanupEnabled else { return nil }
-        let transport = URLSessionTransport()
+        let provider = settings.cleanupProvider
+        let key = settings.apiKey(for: provider)
+        guard provider.capabilities.contains(.text), !key.isEmpty else { return nil }
+        let model = settings.cleanupModelId.isEmpty ? provider.defaultTextModelId : settings.cleanupModelId
         let prompt = settings.cleanupPrompt
-        let mistral = settings.apiKey(for: .mistral)
-        if !mistral.isEmpty {
-            let svc = AICleanupService(config: .mistral, apiKey: mistral, transport: transport)
-            return { (try? await svc.cleanup($0, instruction: prompt)) ?? $0 }
-        }
-        let openai = settings.apiKey(for: .openAI)
-        if !openai.isEmpty {
-            let svc = AICleanupService(config: .openAI, apiKey: openai, transport: transport)
-            return { (try? await svc.cleanup($0, instruction: prompt)) ?? $0 }
-        }
-        return nil
+        let svc = TextLLMService(provider: provider, model: model, apiKey: key, transport: URLSessionTransport())
+        return { (try? await svc.complete(system: prompt, user: $0)) ?? $0 }
     }
 
     private static func resultMessage(for outcome: TranscriptionOutcome) -> String {

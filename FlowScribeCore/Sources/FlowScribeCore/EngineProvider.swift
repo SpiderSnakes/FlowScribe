@@ -79,6 +79,28 @@ public enum EngineProvider: String, CaseIterable, Sendable, Codable {
 
     public var defaultModelId: String { models.first?.id ?? "" }
 
+    /// Modèles ÉCRIT (reformulation / calibration) disponibles (le premier est le défaut).
+    public var textModels: [EngineModel] {
+        switch self {
+        case .openAI:
+            return [EngineModel(id: "gpt-4o-mini", displayName: "GPT-4o mini"),
+                    EngineModel(id: "gpt-4o", displayName: "GPT-4o")]
+        case .mistral:
+            return [EngineModel(id: "mistral-small-latest", displayName: "Mistral Small"),
+                    EngineModel(id: "mistral-large-latest", displayName: "Mistral Large")]
+        case .anthropic:
+            return [EngineModel(id: "claude-sonnet-4-6", displayName: "Claude Sonnet 4.6"),
+                    EngineModel(id: "claude-opus-4-8", displayName: "Claude Opus 4.8")]
+        case .google:
+            return [EngineModel(id: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash"),
+                    EngineModel(id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro")]
+        case .appleLocal, .elevenLabs:
+            return []
+        }
+    }
+
+    public var defaultTextModelId: String { textModels.first?.id ?? "" }
+
     /// Identifiant de moteur utilisé comme clé des profils de correction (= `id` runtime du moteur).
     public var engineId: String { config?.id ?? "apple.local" }
 

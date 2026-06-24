@@ -4,7 +4,7 @@ import XCTest
 final class ModeStoreTests: XCTestCase {
     private func sample(_ name: String) -> Mode {
         Mode(name: name, provider: .appleLocal, modelId: "apple",
-             localeIdentifier: "fr-FR", pauseMusic: true, cleanupPrompt: nil)
+             localeIdentifier: "fr-FR", pauseMusic: true, reformulation: nil)
     }
 
     func test_upsert_addsThenReplaces() {
@@ -43,7 +43,8 @@ final class ModeStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         let store = JSONModeStore(url: url)
         let m = Mode(name: "Code", provider: .openAI, modelId: "gpt-4o-transcribe",
-                     localeIdentifier: "en-US", pauseMusic: false, cleanupPrompt: "Formate en markdown.")
+                     localeIdentifier: "en-US", pauseMusic: false,
+                     reformulation: Reformulation(provider: .openAI, modelId: "gpt-4o-mini", prompt: "Formate en markdown."))
         store.upsert(m)
         store.setActive(m.id)
         let reloaded = JSONModeStore(url: url)

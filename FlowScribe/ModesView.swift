@@ -69,7 +69,7 @@ struct ModesView: View {
         Mode(name: "Nouveau mode", provider: settings.defaultProvider,
              modelId: settings.selectedModelId(for: settings.defaultProvider),
              localeIdentifier: settings.localeIdentifier, pauseMusic: settings.musicControlEnabled,
-             cleanupPrompt: nil)
+             reformulation: nil)
     }
 }
 
@@ -79,14 +79,21 @@ private struct ModeEditor: View {
     let onSave: (Mode) -> Void
     let onCancel: () -> Void
 
-    @State private var cleanupEnabled: Bool
+    @State private var reformEnabled: Bool
+    @State private var reformProvider: EngineProvider
+    @State private var reformModelId: String
+    @State private var reformPrompt: String
 
     init(mode: Mode, settings: SettingsStore, onSave: @escaping (Mode) -> Void, onCancel: @escaping () -> Void) {
         _mode = State(initialValue: mode)
         self.settings = settings
         self.onSave = onSave
         self.onCancel = onCancel
-        _cleanupEnabled = State(initialValue: mode.cleanupPrompt != nil)
+        let r = mode.reformulation
+        _reformEnabled = State(initialValue: r != nil)
+        _reformProvider = State(initialValue: r?.provider ?? .openAI)
+        _reformModelId = State(initialValue: r?.modelId ?? EngineProvider.openAI.defaultTextModelId)
+        _reformPrompt = State(initialValue: r?.prompt ?? SettingsStore.defaultCleanupPrompt)
     }
 
     var body: some View {
@@ -108,15 +115,22 @@ private struct ModeEditor: View {
                     }
                     Toggle("Mettre la musique en pause", isOn: $mode.pauseMusic)
                 }
-                Section("Nettoyage IA") {
-                    Toggle("Activer le nettoyage IA", isOn: $cleanupEnabled)
-                    if cleanupEnabled {
-                        TextEditor(text: Binding(
-                            get: { mode.cleanupPrompt ?? SettingsStore.defaultCleanupPrompt },
-                            set: { mode.cleanupPrompt = $0 }))
-                            .frame(minHeight: 90)
+                Section("Reformulation (2ᵉ passe écrite)") {
+                    Toggle("Reformuler la transcription avec une IA écrite", isOn: $reformEnabled)
+                    if reformEnabled {
+                        Picker("Fournisseur", selection: $reformProvider) {
+                            ForEach(EngineProvider.textProviders, id: \.self) { Text($0.displayName).tag($0) }
+                        }
+                        .onChange(of: reformProvider) { _, p in
+                            if !p.textModels.contains(where: { $0.id == reformModelId }) { reformModelId = p.defaultTextModelId }
+                        }
+                        Picker("Modèle", selection: $reformModelId) {
+                            ForEach(reformProvider.textModels, id: \.id) { Text($0.displayName).tag($0.id) }
+                        }
+                        TextEditor(text: $reformPrompt)
+                            .frame(minHeight: 80)
                             .font(.callout)
-                        Text("Décris le style voulu (e-mail, notes, code, ton…).")
+                        Text("Décris le style voulu (e-mail, notes, code, ton…). Nécessite la clé du fournisseur.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -128,8 +142,9 @@ private struct ModeEditor: View {
                 Spacer()
                 Button("Annuler", action: onCancel).buttonStyle(.glass)
                 Button("Enregistrer") {
-                    if !cleanupEnabled { mode.cleanupPrompt = nil }
-                    else if mode.cleanupPrompt == nil { mode.cleanupPrompt = SettingsStore.defaultCleanupPrompt }
+                    mode.reformulation = reformEnabled
+                        ? Reformulation(provider: reformProvider, modelId: reformModelId, prompt: reformPrompt)
+                        : nil
                     onSave(mode)
                 }
                 .buttonStyle(.glassProminent)

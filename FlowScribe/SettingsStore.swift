@@ -47,11 +47,19 @@ final class SettingsStore {
     var cleanupEnabled: Bool {
         didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); notifyChange() }
     }
-    /// Prompt de reformulation IA (alimenté par le mode actif).
+    /// Reformulation (2ᵉ passe écrite) — alimentés par le mode actif.
     var cleanupPrompt: String {
         didSet { defaults.set(cleanupPrompt, forKey: "cleanupPrompt"); notifyChange() }
     }
-    static let defaultCleanupPrompt = AICleanupService.defaultPrompt
+    /// Fournisseur écrit utilisé pour la reformulation.
+    var cleanupProvider: EngineProvider {
+        didSet { defaults.set(cleanupProvider.rawValue, forKey: "cleanupProvider"); notifyChange() }
+    }
+    /// Modèle écrit utilisé pour la reformulation.
+    var cleanupModelId: String {
+        didSet { defaults.set(cleanupModelId, forKey: "cleanupModelId"); notifyChange() }
+    }
+    static let defaultCleanupPrompt = TextLLMService.defaultPrompt
     /// Rétention de l'historique en jours (0 = illimité).
     var retentionDays: Int {
         didSet { defaults.set(retentionDays, forKey: "retentionDays") }
@@ -92,6 +100,8 @@ final class SettingsStore {
         self.musicControlEnabled = defaults.bool(forKey: "musicControlEnabled")
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
         self.cleanupPrompt = defaults.string(forKey: "cleanupPrompt") ?? Self.defaultCleanupPrompt
+        self.cleanupProvider = EngineProvider(rawValue: defaults.string(forKey: "cleanupProvider") ?? "") ?? .openAI
+        self.cleanupModelId = defaults.string(forKey: "cleanupModelId") ?? ""
         self.retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 30
         self.hasSeenOnboarding = defaults.bool(forKey: "hasSeenOnboarding")
         self.recordingWindowStyle = RecordingWindowStyle(rawValue: defaults.string(forKey: "recordingWindowStyle") ?? "") ?? .classic
