@@ -8,7 +8,7 @@ struct APIKeysPanel: View {
 
     private var providers: [EngineProvider] { EngineProvider.allCases.filter { $0.secretKey != nil } }
 
-    @State private var provider: EngineProvider = .elevenLabs
+    @State private var provider: EngineProvider = .openAI
     @State private var keyDraft = ""
     @State private var result: KeyTestResult?
     @State private var testing = false
@@ -18,7 +18,7 @@ struct APIKeysPanel: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Vos propres clés").font(.system(size: 16, weight: .semibold))
-                Text("Connecte FlowScribe directement aux meilleurs moteurs avec ta propre clé API. Apple fonctionne sans clé ; le modèle se choisit par mode.")
+                Text("Une clé par fournisseur (stockée dans le Trousseau). Les badges indiquent ce que chacun sait faire : 🎙️ Oral = transcription · ✍️ Écrit = reformulation/calibration. Apple fonctionne sans clé.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -26,10 +26,14 @@ struct APIKeysPanel: View {
             Divider().overlay(Theme.hairline)
 
             field("Fournisseur") {
-                Picker("", selection: $provider) {
-                    ForEach(providers, id: \.self) { Text($0.displayName).tag($0) }
+                HStack {
+                    Picker("", selection: $provider) {
+                        ForEach(providers, id: \.self) { Text($0.displayName).tag($0) }
+                    }
+                    .labelsHidden().fixedSize()
+                    Spacer()
+                    capabilityBadges
                 }
-                .labelsHidden()
             }
 
             field("Clé API") {
@@ -51,7 +55,7 @@ struct APIKeysPanel: View {
                 Spacer()
                 Button("Tester") { test() }
                     .buttonStyle(.glass)
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty || testing)
+                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty || testing || provider.config == nil)
                 Button("Enregistrer") { save() }
                     .buttonStyle(.glassProminent)
                     .disabled(testing)
@@ -61,6 +65,21 @@ struct APIKeysPanel: View {
         .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 14))
         .onAppear(perform: load)
         .onChange(of: provider) { _, _ in load() }
+    }
+
+    private var capabilityBadges: some View {
+        HStack(spacing: 6) {
+            if provider.capabilities.contains(.transcription) { badge("Oral", "mic.fill") }
+            if provider.capabilities.contains(.text) { badge("Écrit", "text.bubble.fill") }
+        }
+    }
+
+    private func badge(_ label: String, _ icon: String) -> some View {
+        Label(label, systemImage: icon)
+            .font(.caption2)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(Theme.accent.opacity(0.15), in: Capsule())
+            .foregroundStyle(Theme.accent)
     }
 
     @ViewBuilder
