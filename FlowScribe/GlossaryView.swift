@@ -10,7 +10,6 @@ struct GlossaryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Termes du glossaire").font(.headline)
             HStack {
                 TextField("Nouveau terme (ex. Dokploy)", text: $newTerm)
                     .textFieldStyle(.roundedBorder)

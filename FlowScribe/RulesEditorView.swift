@@ -28,8 +28,6 @@ struct RulesEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Règles de correction").font(.headline)
-
             // Ajout manuel
             HStack(spacing: 8) {
                 TextField("entendu", text: $newHeard).textFieldStyle(.roundedBorder).frame(maxWidth: 130)

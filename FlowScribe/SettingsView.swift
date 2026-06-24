@@ -16,15 +16,22 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Moteur par défaut") {
-                Picker("Moteur", selection: $settings.defaultProvider) {
-                    ForEach(EngineProvider.allCases, id: \.self) { p in
-                        Text(p.displayName).tag(p)
-                    }
+            Section {
+                Picker("Périphérique d'entrée", selection: $settings.selectedMicrophoneUID) {
+                    Text("Système (par défaut)").tag("")
+                    ForEach(micDevices) { Text($0.name).tag($0.id) }
                 }
-            }
+                Picker("Fenêtre d'enregistrement", selection: $settings.recordingWindowStyle) {
+                    ForEach(RecordingWindowStyle.allCases) { Text($0.title).tag($0) }
+                }
+            } header: { Text("Enregistrement") }
 
-            Section("Clés API (stockées dans le Keychain)") {
+            Section {
+                Toggle("Repères sonores (début/fin)", isOn: $settings.soundEffectsEnabled)
+                Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
+            } header: { Text("Application") }
+
+            Section {
                 ForEach(cloudProviders, id: \.self) { p in
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 8) {
@@ -33,13 +40,6 @@ struct SettingsView: View {
                             Button("Tester") { test(p) }
                                 .disabled(testing.contains(p.secretKey ?? ""))
                         }
-                        if p.models.count > 1 {
-                            Picker("Modèle", selection: Binding(
-                                get: { settings.selectedModelId(for: p) },
-                                set: { settings.setModel($0, for: p) })) {
-                                ForEach(p.models, id: \.id) { m in Text(m.displayName).tag(m.id) }
-                            }
-                        }
                         if let msg = message(for: p) {
                             Text(msg).font(.caption).foregroundStyle(resultColor(for: p))
                         }
@@ -47,40 +47,21 @@ struct SettingsView: View {
                 }
                 Button("Enregistrer les clés") { saveAllKeys() }
                     .buttonStyle(.glassProminent)
+            } header: { Text("Clés API") } footer: {
+                Text("Tes clés restent dans le Trousseau macOS. Le moteur, le modèle et la langue se choisissent par mode (onglet Modes).")
             }
 
-            Section("Langue") {
-                TextField("Identifiant de langue (ex. fr-FR)", text: $settings.localeIdentifier)
-            }
-
-            Section("Apparence") {
-                Picker("Fenêtre d'enregistrement", selection: $settings.recordingWindowStyle) {
-                    ForEach(RecordingWindowStyle.allCases) { Text($0.title).tag($0) }
+            Section {
+                Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
+                    Text("Toujours").tag(0)
+                    Text("1 jour").tag(1)
+                    Text("1 semaine").tag(7)
+                    Text("2 semaines").tag(14)
+                    Text("1 mois").tag(30)
+                    Text("6 mois").tag(180)
+                    Text("1 an").tag(365)
                 }
-            }
-
-            Section("Micro") {
-                Picker("Périphérique d'entrée", selection: $settings.selectedMicrophoneUID) {
-                    Text("Système (par défaut)").tag("")
-                    ForEach(micDevices) { Text($0.name).tag($0.id) }
-                }
-            }
-
-            Section("Confort") {
-                Toggle("Mettre la musique en pause pendant la dictée", isOn: $settings.musicControlEnabled)
-                Toggle("Repères sonores (début/fin d'enregistrement)", isOn: $settings.soundEffectsEnabled)
-                Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
-                Toggle("Nettoyage IA du texte (ponctuation, hésitations)", isOn: $settings.cleanupEnabled)
-                if settings.cleanupEnabled {
-                    Text("Utilise ta clé Mistral (sinon OpenAI). Ajoute un court délai après la dictée.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-
-            Section("Rétention de l'historique") {
-                Stepper("Conserver \(settings.retentionDays) jour(s) — 0 = illimité",
-                        value: $settings.retentionDays, in: 0...365)
-            }
+            } header: { Text("Conservation") }
 
             Section("Autorisations") {
                 permissionRow("Micro", ok: permissions.mic == .granted)
