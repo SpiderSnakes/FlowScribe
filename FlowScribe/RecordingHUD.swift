@@ -40,7 +40,7 @@ final class RecordingHUD {
     /// Toast de résultat (moteur utilisé / repli), restylé bleu, auto-masqué.
     func showResult(_ message: String) {
         let panel = self.panel ?? makePanel()
-        panel.contentView = NSHostingView(rootView: ResultHUDView(message: message))
+        panel.contentView = clearHosting(ResultHUDView(message: message))
         showingResult = true
         sizeToFit(panel, fallback: NSSize(width: 200, height: 44))
         panel.orderFrontRegardless()
@@ -51,7 +51,7 @@ final class RecordingHUD {
         }
     }
 
-    func hide() { panel?.orderOut(nil); showingResult = false }
+    func hide() { panel?.orderOut(nil); showingResult = false; model.stop() }
 
     private func presentLive() {
         guard style != .none else { hide(); return }
@@ -61,10 +61,10 @@ final class RecordingHUD {
             let size: NSSize
             switch style {
             case .classic:
-                panel.contentView = NSHostingView(rootView: AnyView(ClassicHUDView(model: model)))
+                panel.contentView = clearHosting(AnyView(ClassicHUDView(model: model)))
                 size = NSSize(width: 412, height: 120)
             case .mini:
-                panel.contentView = NSHostingView(rootView: AnyView(LiveHUDView(model: model)))
+                panel.contentView = clearHosting(AnyView(LiveHUDView(model: model)))
                 size = NSSize(width: 280, height: 88)
             case .none:
                 return
@@ -82,6 +82,14 @@ final class RecordingHUD {
         let fit = panel.contentView?.fittingSize ?? fallback
         panel.setContentSize(NSSize(width: max(fit.width, 120), height: max(fit.height, 36)))
         positionBottomCenter(panel)
+    }
+
+    /// Hôte SwiftUI au fond transparent : sans ça, le fond opaque par défaut du NSHostingView
+    /// déborde derrière le `.clipShape` arrondi et fait apparaître des coins rectangulaires.
+    private func clearHosting<Content: View>(_ root: Content) -> NSHostingView<Content> {
+        let view = NSHostingView(rootView: root)
+        view.backgroundColor = .clear
+        return view
     }
 
     private func makePanel() -> NSPanel {

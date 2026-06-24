@@ -23,26 +23,38 @@ struct ClassicHUDView: View {
         .shadow(color: .black.opacity(0.45), radius: 16, y: 6)
     }
 
+    /// Maillage de lignes horizontales sinueuses (gris/blanc, opacités dégradées) : au repos
+    /// elles ondulent doucement ; quand on parle, l'amplitude gonfle vers le centre. Tout est
+    /// dérivé du temps continu + du niveau lissé → fluide, organique, sans saccade.
+    private let lineCount = 6
+
     private var waveform: some View {
         TimelineView(.animation) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
-                let levels = model.levels
-                let n = levels.count
-                guard n > 0 else { return }
-                let slot = size.width / CGFloat(n)
-                let barW = max(2.5, slot * 0.55)
+                let level = HUDWaveform.gain(model.level)
                 let midY = size.height / 2
-                let maxH = size.height
-                for i in 0..<n {
-                    // Shimmer organique + légère respiration quand c'est calme.
-                    let shimmer = 0.85 + 0.15 * sin(t * 5.0 + Double(i) * 0.55)
-                    let idle = 0.10 + 0.06 * sin(t * 2.2 + Double(i) * 0.40)
-                    let frac = max(idle, HUDWaveform.gain(levels[i]) * shimmer)
-                    let h = max(3, maxH * CGFloat(frac))
-                    let x = CGFloat(i) * slot + (slot - barW) / 2
-                    let rect = CGRect(x: x, y: midY - h / 2, width: barW, height: h)
-                    ctx.fill(Path(roundedRect: rect, cornerRadius: barW / 2), with: .color(HUDWaveform.barColor(frac: frac)))
+                let maxSwing = size.height * 0.42
+                let steps = 72
+                for j in 0..<lineCount {
+                    let phase = Double(j) * 0.7
+                    let dir: Double = (j % 2 == 0) ? 1 : -1
+                    let freq = 1.6 + Double(j) * 0.18
+                    let amp = maxSwing * (0.16 + 0.84 * level) * (1.0 - 0.06 * Double(j))
+                    var path = Path()
+                    for s in 0...steps {
+                        let xN = Double(s) / Double(steps)
+                        let x = CGFloat(xN) * size.width
+                        let envelope = sin(.pi * xN)            // 0 aux bords, 1 au centre → « monte vers le milieu »
+                        let wave = sin(2 * .pi * freq * xN + dir * t * 1.7 + phase)
+                                 + 0.35 * sin(.pi * freq * xN - dir * t * 1.1 + phase * 1.3)
+                        let y = midY - CGFloat(envelope * amp * wave)
+                        if s == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                    }
+                    ctx.stroke(path,
+                               with: .color(HUDWaveform.lineColor(index: j, of: lineCount, level: level)),
+                               lineWidth: CGFloat(1.8 - 0.12 * Double(j)))
                 }
             }
         }

@@ -5,20 +5,45 @@ import FlowScribeCore
 @Observable
 final class HUDModel {
     var state: DictationState = .idle
-    var level: Double = 0
-    /// Historique des niveaux (buffer circulaire) pour la waveform pleine largeur.
-    var levels: [Double] = Array(repeating: 0, count: 64)
+    /// Niveau micro lissé (0…1), interpolé à ~60fps vers la dernière mesure — c'est ce que lisent les vues.
+    /// Le micro n'envoie qu'~10 mesures/s ; sans ce lissage la waveform « saute » (saccades).
+    private(set) var level: Double = 0
 
+    private var target: Double = 0
+    private var timer: Timer?
+
+    /// Mesure brute du micro (~10 Hz) : on ne fait que poser la cible ; le lissage tourne à 60fps.
     func pushLevel(_ v: Double) {
-        let clamped = max(0, min(1, v))
-        level = clamped
-        levels.removeFirst()
-        levels.append(clamped)
+        target = max(0, min(1, v))
+        startTicking()
     }
 
     func resetLevels() {
+        target = 0
         level = 0
-        levels = Array(repeating: 0, count: levels.count)
+    }
+
+    /// Arrête net l'animation (HUD masqué) pour ne pas laisser tourner le timer.
+    func stop() {
+        target = 0; level = 0
+        timer?.invalidate(); timer = nil
+    }
+
+    private func startTicking() {
+        guard timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+    }
+
+    private func tick() {
+        if state != .recording { target = 0 }          // plus de capture → la waveform retombe en douceur
+        let rate = target > level ? 0.35 : 0.12         // attaque vive, relâchement doux → organique
+        level += (target - level) * rate
+        if abs(target - level) < 0.0015 {
+            level = target
+            if state != .recording { timer?.invalidate(); timer = nil }
+        }
     }
 }
 
