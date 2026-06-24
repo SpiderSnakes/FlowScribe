@@ -13,6 +13,7 @@ struct RootView: View {
     let onTranscribeFile: (URL, EngineProvider, String) async -> Bool
     let onActivateMode: (Mode) -> Void
 
+    @Environment(\.ambiance) private var ambiance
     @State private var section: AppSection = .accueil
     @State private var micDevices: [AudioInputDevice] = []
 
@@ -25,6 +26,7 @@ struct RootView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(section: $section)
+                .background(ambiance.palette.base.opacity(0.25))
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             ZStack {

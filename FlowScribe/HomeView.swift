@@ -11,6 +11,7 @@ struct HomeView: View {
     let onRetranscribe: (TranscriptionRecord, EngineProvider, String) async -> Void
     let onActivateMode: (Mode) -> Void
 
+    @Environment(\.ambiance) private var ambiance
     @State private var query = ""
     @State private var selected: TranscriptionRecord?
 
@@ -29,16 +30,19 @@ struct HomeView: View {
                 PermissionsView(model: permissions)
             }
 
-            HStack(alignment: .center, spacing: 12) {
-                Text("Historique").font(.system(size: 22, weight: .bold))
-                Spacer()
-                modeChip
-                Button(action: onToggleRecord) {
-                    Label("Dicter", systemImage: "mic.fill")
+            ZStack(alignment: .top) {
+                AuroraView(surface: .appWindow).frame(height: 120).opacity(0.35).allowsHitTesting(false)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("Historique").font(.system(size: 22, weight: .bold))
+                    Spacer()
+                    modeChip
+                    Button(action: onToggleRecord) {
+                        Label("Dicter", systemImage: "mic.fill")
+                    }
+                    .buttonStyle(.glassProminent)
+                    .help("Dicter (⌥Espace)")
+                    .borderGlow(cornerRadius: 10)
                 }
-                .buttonStyle(.glassProminent)
-                .borderGlow(cornerRadius: 10)
-                .help("Dicter (⌥Espace)")
             }
 
             if !history.records.isEmpty {
@@ -119,7 +123,7 @@ struct HomeView: View {
                 Spacer(minLength: 8)
                 Image(systemName: r.failed ? "exclamationmark.triangle.fill" : "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(r.failed ? Color.orange : Color.secondary.opacity(0.6))
+                    .foregroundStyle(r.failed ? ambiance.palette.warm : Color.secondary.opacity(0.6))
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)

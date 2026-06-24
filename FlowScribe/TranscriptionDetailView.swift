@@ -9,6 +9,7 @@ struct TranscriptionDetailView: View {
     let onRetranscribe: (TranscriptionRecord, EngineProvider, String) async -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.ambiance) private var ambiance
     @State private var playback = AudioPlayback()
     @State private var ruleHeard = ""
     @State private var ruleReplacement = ""
@@ -90,14 +91,14 @@ struct TranscriptionDetailView: View {
             Text(RecordFormat.dateLabel(current.date)).font(.system(size: 16, weight: .semibold))
             if current.failed {
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(ambiance.palette.warm)
                     Text(current.errorMessage ?? "La transcription a échoué.")
                         .font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                .background(ambiance.palette.warm.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             } else {
                 HStack(spacing: 10) {
                     if !current.engineId.isEmpty { Label(current.engineId, systemImage: "cpu") }
