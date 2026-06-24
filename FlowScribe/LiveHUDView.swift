@@ -53,9 +53,11 @@ final class HUDModel {
 struct LiveHUDView: View {
     let model: HUDModel
     @Environment(\.ambiance) private var ambiance
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        let animate = ambiance.animates(.hud, reduceMotion: reduceMotion, windowActive: true)
+        return TimelineView(.animation(minimumInterval: nil, paused: !animate)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let bars = 9

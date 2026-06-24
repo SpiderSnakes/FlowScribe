@@ -6,6 +6,7 @@ import FlowScribeCore
 struct ClassicHUDView: View {
     let model: HUDModel
     @Environment(\.ambiance) private var ambiance
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,7 +32,8 @@ struct ClassicHUDView: View {
     private let lineCount = 6
 
     private var waveform: some View {
-        TimelineView(.animation) { timeline in
+        let animate = ambiance.animates(.hud, reduceMotion: reduceMotion, windowActive: true)
+        return TimelineView(.animation(minimumInterval: nil, paused: !animate)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let level = HUDWaveform.gain(model.level)
