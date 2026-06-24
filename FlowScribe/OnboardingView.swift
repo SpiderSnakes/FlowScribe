@@ -21,7 +21,16 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(VisualEffectBackground(material: .sidebar).ignoresSafeArea())
+        .background {
+            ZStack {
+                GrainientBackground()
+                AuroraView(surface: .onboarding).opacity(0.9)
+                SideRaysView(surface: .onboarding)
+                StrandsView(lineCount: 7, amplitude: 0.35, speed: 0.6, surface: .onboarding)
+                    .opacity(0.5)
+            }
+            .ignoresSafeArea()
+        }
         .animation(.snappy(duration: 0.25), value: grantedCount)
         .onAppear { permissions.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -100,6 +109,7 @@ struct OnboardingView: View {
         }
         .padding(14)
         .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+        .borderGlow(active: granted, cornerRadius: 12)
         .opacity(locked ? 0.45 : 1)
         .animation(.snappy(duration: 0.25), value: granted)
         .animation(.snappy(duration: 0.25), value: locked)
