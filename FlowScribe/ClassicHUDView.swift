@@ -33,24 +33,31 @@ struct ClassicHUDView: View {
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let level = HUDWaveform.gain(model.level)
-                let midY = size.height / 2
-                let maxSwing = size.height * 0.42
+                let w = Double(size.width)
+                let h = Double(size.height)
+                let midY = h / 2
+                let maxSwing = h * 0.42
                 let steps = 72
                 for j in 0..<lineCount {
-                    let phase = Double(j) * 0.7
+                    let phase: Double = Double(j) * 0.7
                     let dir: Double = (j % 2 == 0) ? 1 : -1
-                    let freq = 1.6 + Double(j) * 0.18
-                    let amp = maxSwing * (0.16 + 0.84 * level) * (1.0 - 0.06 * Double(j))
+                    let freq: Double = 1.6 + Double(j) * 0.18
+                    let amp: Double = maxSwing * (0.16 + 0.84 * level) * (1.0 - 0.06 * Double(j))
+                    // Constantes hoistées hors de la boucle (indépendantes de `s`) : type-check + perf.
+                    let k1: Double = 2 * Double.pi * freq
+                    let k2: Double = Double.pi * freq
+                    let travel1: Double = dir * t * 1.7 + phase
+                    let travel2: Double = (-dir) * t * 1.1 + phase * 1.3
                     var path = Path()
                     for s in 0...steps {
-                        let xN = Double(s) / Double(steps)
-                        let x = CGFloat(xN) * size.width
-                        let envelope = sin(.pi * xN)            // 0 aux bords, 1 au centre → « monte vers le milieu »
-                        let wave = sin(2 * .pi * freq * xN + dir * t * 1.7 + phase)
-                                 + 0.35 * sin(.pi * freq * xN - dir * t * 1.1 + phase * 1.3)
-                        let y = midY - CGFloat(envelope * amp * wave)
-                        if s == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                        let xN: Double = Double(s) / Double(steps)
+                        let envelope: Double = sin(Double.pi * xN)   // 0 aux bords, 1 au centre → « monte vers le milieu »
+                        let primary: Double = sin(k1 * xN + travel1)
+                        let secondary: Double = sin(k2 * xN + travel2)
+                        let wave: Double = primary + 0.35 * secondary
+                        let yOffset: Double = envelope * amp * wave
+                        let point = CGPoint(x: CGFloat(xN * w), y: CGFloat(midY - yOffset))
+                        if s == 0 { path.move(to: point) } else { path.addLine(to: point) }
                     }
                     ctx.stroke(path,
                                with: .color(HUDWaveform.lineColor(index: j, of: lineCount, level: level)),

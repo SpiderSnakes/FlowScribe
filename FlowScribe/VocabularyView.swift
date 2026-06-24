@@ -1,18 +1,31 @@
 import SwiftUI
 import FlowScribeCore
 
-/// Menu « Corrections » : les règles entendu → corrigé (déterministes), sans calibration.
+/// Menu « Corrections » : les règles entendu → corrigé (déterministes) + le glossaire (vocabulaire).
 struct CorrectionsView: View {
+    let glossary: GlossaryStore
     let profiles: CorrectionProfileStore
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Règles de correction").font(.system(size: 20, weight: .semibold))
-                Text("Remplace automatiquement ce qui est mal transcrit (« doc ploy » → Dokploy). Règles globales ou propres à un moteur, activables une par une.")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                RulesEditorView(profiles: profiles)
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Règles de correction").font(.system(size: 20, weight: .semibold))
+                    Text("Remplace automatiquement ce qui est mal transcrit (« doc ploy » → Dokploy). Règles globales ou propres à un moteur, activables une par une.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    RulesEditorView(profiles: profiles)
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Glossaire").font(.system(size: 16, weight: .semibold))
+                    Text("Tes mots techniques et noms propres (Dokploy, SwiftUI…). Ils alimentent tes règles et la phrase de calibration vocale.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    GlossaryView(glossary: glossary)
+                }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -47,21 +60,11 @@ struct CalibrationSectionView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Calibration vocale (repli)").font(.system(size: 16, weight: .semibold))
-                    Text("Lis une phrase à voix haute : FlowScribe la compare à la référence (basée sur ton glossaire ci-dessous) et apprend les corrections.")
+                    Text("Lis une phrase à voix haute : FlowScribe la compare à la référence (basée sur ton glossaire, modifiable dans Corrections) et apprend les corrections.")
                         .font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Button("Démarrer une calibration vocale") { showCalibration = true }
                         .buttonStyle(.glass)
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Glossaire").font(.system(size: 16, weight: .semibold))
-                    Text("Tes mots techniques et noms propres (Dokploy, SwiftUI…). Ils servent à construire la phrase de calibration vocale.")
-                        .font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    GlossaryView(glossary: glossary)
                 }
             }
             .padding(24)

@@ -80,7 +80,7 @@ struct RootView: View {
         case .fichiers:
             FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
         case .corrections:
-            CorrectionsView(profiles: profiles)
+            CorrectionsView(glossary: glossary, profiles: profiles)
         case .calibration:
             CalibrationSectionView(glossary: glossary, profiles: profiles, settings: settings, history: history)
         case .reglages:

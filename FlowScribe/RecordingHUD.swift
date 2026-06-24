@@ -91,7 +91,8 @@ final class RecordingHUD {
     /// déborde derrière le `.clipShape` arrondi et fait apparaître des coins rectangulaires.
     private func clearHosting<Content: View>(_ root: Content) -> NSHostingView<Content> {
         let view = NSHostingView(rootView: root)
-        view.backgroundColor = .clear
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.clear.cgColor   // NSView n'a pas de backgroundColor : on passe par le layer
         return view
     }
 

@@ -36,13 +36,13 @@ struct SettingsView: View {
             } header: { Text("Clés API") }
 
             Section {
+                Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
+                    ForEach(RetentionOption.all) { Text($0.title).tag($0.days) }
+                }
                 Button(role: .destructive) { confirmDeleteAll = true } label: {
                     Label("Supprimer tous les enregistrements", systemImage: "trash")
                 }
                 .disabled(history.records.isEmpty)
-                Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
-                    ForEach(RetentionOption.all) { Text($0.title).tag($0.days) }
-                }
             } header: { Text("Conservation") }
             .confirmationDialog("Supprimer toutes les transcriptions et leurs enregistrements audio ?",
                                 isPresented: $confirmDeleteAll, titleVisibility: .visible) {
@@ -55,7 +55,9 @@ struct SettingsView: View {
                 permissionRow("Reconnaissance vocale", ok: permissions.speech == .granted)
                 permissionRow("Accessibilité (collage)", ok: permissions.accessibility)
                 HStack {
-                    Button("Demander") { Task { await permissions.requestAll() } }
+                    if permissions.mic != .granted || permissions.speech != .granted || !permissions.accessibility {
+                        Button("Demander") { Task { await permissions.requestAll() } }
+                    }
                     if permissions.mic != .granted {
                         Button("Réglages Micro") { Permissions.openMicrophoneSettings() }
                     }
