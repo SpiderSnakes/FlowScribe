@@ -95,7 +95,7 @@ private struct ModeEditor: View {
                 Section("Mode") {
                     TextField("Nom", text: $mode.name)
                     Picker("Moteur", selection: $mode.provider) {
-                        ForEach(EngineProvider.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                        ForEach(EngineProvider.transcriptionProviders, id: \.self) { Text($0.displayName).tag($0) }
                     }
                     .onChange(of: mode.provider) { _, p in
                         if !p.models.contains(where: { $0.id == mode.modelId }) { mode.modelId = p.defaultModelId }

@@ -21,7 +21,7 @@ struct RulesEditorView: View {
     @State private var newScope = CorrectionScope.global
 
     private var scopes: [(key: String, label: String)] {
-        [(CorrectionScope.global, "Toutes (global)")] + EngineProvider.allCases.map { ($0.engineId, $0.displayName) }
+        [(CorrectionScope.global, "Toutes (global)")] + EngineProvider.transcriptionProviders.map { ($0.engineId, $0.displayName) }
     }
     private func label(for key: String) -> String { scopes.first { $0.key == key }?.label ?? key }
 

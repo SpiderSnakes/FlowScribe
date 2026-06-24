@@ -91,7 +91,7 @@ struct FilesView: View {
 
     private var modelMenu: some View {
         Menu {
-            ForEach(EngineProvider.allCases, id: \.self) { p in
+            ForEach(EngineProvider.transcriptionProviders, id: \.self) { p in
                 Menu(p.displayName) {
                     ForEach(p.models, id: \.id) { m in
                         Button(m.displayName) { provider = p; modelId = m.id }

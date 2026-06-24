@@ -37,4 +37,32 @@ final class EngineProviderTests: XCTestCase {
         let e = EngineProvider.openAI.makeEngine(apiKey: "sk", modelId: "whisper-1", transport: MockTransport())
         XCTAssertEqual(e?.id, CloudEngineConfig.openAI.id)
     }
+
+    func test_capabilities_oralVsText() {
+        XCTAssertEqual(EngineProvider.appleLocal.capabilities, [.transcription])
+        XCTAssertEqual(EngineProvider.elevenLabs.capabilities, [.transcription])
+        XCTAssertEqual(EngineProvider.openAI.capabilities, [.transcription, .text])
+        XCTAssertEqual(EngineProvider.mistral.capabilities, [.transcription, .text])
+        XCTAssertEqual(EngineProvider.anthropic.capabilities, [.text])
+        XCTAssertEqual(EngineProvider.google.capabilities, [.text])
+    }
+
+    func test_transcriptionProviders_excludeTextOnly() {
+        let oral = EngineProvider.transcriptionProviders
+        XCTAssertTrue(oral.contains(.appleLocal))
+        XCTAssertTrue(oral.contains(.elevenLabs))
+        XCTAssertFalse(oral.contains(.anthropic))
+        XCTAssertFalse(oral.contains(.google))
+    }
+
+    func test_textProviders_includeWritersOnly() {
+        let text = EngineProvider.textProviders
+        XCTAssertEqual(Set(text), [.openAI, .mistral, .anthropic, .google])
+    }
+
+    func test_textOnlyProviders_haveNoTranscriptionEngine() {
+        XCTAssertNil(EngineProvider.anthropic.makeEngine(apiKey: "k", transport: MockTransport()))
+        XCTAssertNil(EngineProvider.google.makeEngine(apiKey: "k", transport: MockTransport()))
+        XCTAssertTrue(EngineProvider.anthropic.models.isEmpty)
+    }
 }

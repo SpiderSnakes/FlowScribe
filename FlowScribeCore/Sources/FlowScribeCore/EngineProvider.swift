@@ -6,15 +6,24 @@ public struct EngineModel: Equatable, Sendable {
     public init(id: String, displayName: String) { self.id = id; self.displayName = displayName }
 }
 
-public enum EngineProvider: String, CaseIterable, Sendable, Codable {
-    case appleLocal, elevenLabs, mistral, openAI
+/// Ce qu'un fournisseur sait faire : transcription (oral) et/ou texte (écrit, reformulation/calibration).
+public enum Capability: Sendable, Hashable {
+    case transcription   // oral
+    case text            // écrit (LLM)
+}
 
+public enum EngineProvider: String, CaseIterable, Sendable, Codable {
+    case appleLocal, elevenLabs, mistral, openAI, anthropic, google
+
+    /// Nom du fournisseur SEUL (le modèle se choisit à part).
     public var displayName: String {
         switch self {
         case .appleLocal: return "Apple (local)"
-        case .elevenLabs: return "ElevenLabs Scribe"
-        case .mistral: return "Mistral Voxtral"
-        case .openAI: return "OpenAI gpt-4o-transcribe"
+        case .elevenLabs: return "ElevenLabs"
+        case .mistral: return "Mistral"
+        case .openAI: return "OpenAI"
+        case .anthropic: return "Anthropic"
+        case .google: return "Google"
         }
     }
 
@@ -25,19 +34,32 @@ public enum EngineProvider: String, CaseIterable, Sendable, Codable {
         case .elevenLabs: return "elevenlabs"
         case .mistral: return "mistral"
         case .openAI: return "openai"
+        case .anthropic: return "anthropic"
+        case .google: return "google"
         }
     }
 
+    /// Ce que le fournisseur sait faire (oral / écrit).
+    public var capabilities: Set<Capability> {
+        switch self {
+        case .appleLocal: return [.transcription]
+        case .elevenLabs: return [.transcription]
+        case .mistral, .openAI: return [.transcription, .text]
+        case .anthropic, .google: return [.text]
+        }
+    }
+
+    /// Config du moteur de TRANSCRIPTION (nil si le fournisseur ne fait pas d'oral).
     public var config: CloudEngineConfig? {
         switch self {
-        case .appleLocal: return nil
+        case .appleLocal, .anthropic, .google: return nil
         case .elevenLabs: return .elevenLabs
         case .mistral: return .mistral
         case .openAI: return .openAI
         }
     }
 
-    /// Modèles disponibles par fournisseur (le premier est le défaut).
+    /// Modèles de transcription (oral) disponibles (le premier est le défaut).
     public var models: [EngineModel] {
         switch self {
         case .appleLocal:
@@ -50,6 +72,8 @@ public enum EngineProvider: String, CaseIterable, Sendable, Codable {
             return [EngineModel(id: "gpt-4o-transcribe", displayName: "GPT-4o Transcribe"),
                     EngineModel(id: "gpt-4o-mini-transcribe", displayName: "GPT-4o mini Transcribe"),
                     EngineModel(id: "whisper-1", displayName: "Whisper (legacy)")]
+        case .anthropic, .google:
+            return []   // pas d'oral
         }
     }
 
@@ -58,7 +82,16 @@ public enum EngineProvider: String, CaseIterable, Sendable, Codable {
     /// Identifiant de moteur utilisé comme clé des profils de correction (= `id` runtime du moteur).
     public var engineId: String { config?.id ?? "apple.local" }
 
-    /// Construit le moteur avec le modèle choisi. Renvoie nil si une clé est requise mais absente.
+    /// Fournisseurs capables de transcription (oral) — pour les sélecteurs de moteur.
+    public static var transcriptionProviders: [EngineProvider] {
+        allCases.filter { $0.capabilities.contains(.transcription) }
+    }
+    /// Fournisseurs capables de texte (écrit) — pour la reformulation et la calibration IA.
+    public static var textProviders: [EngineProvider] {
+        allCases.filter { $0.capabilities.contains(.text) }
+    }
+
+    /// Construit le moteur de TRANSCRIPTION avec le modèle choisi. Renvoie nil si clé requise absente ou pas d'oral.
     public func makeEngine(apiKey: String?, modelId: String? = nil, transport: Transport) -> TranscriptionEngine? {
         if self == .appleLocal { return AppleSpeechEngine() }
         guard let config, let apiKey, !apiKey.isEmpty else { return nil }

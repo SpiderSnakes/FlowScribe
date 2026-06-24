@@ -66,7 +66,7 @@ struct HomeView: View {
                 Spacer()
                 Button("Copier") { copy(r.text) }.buttonStyle(.borderless)
                 Menu("Re-transcrire") {
-                    ForEach(EngineProvider.allCases, id: \.self) { p in
+                    ForEach(EngineProvider.transcriptionProviders, id: \.self) { p in
                         Button(p.displayName) { Task { await onRetranscribe(r, p) } }
                     }
                 }
