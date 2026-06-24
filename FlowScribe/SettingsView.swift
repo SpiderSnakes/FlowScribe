@@ -22,7 +22,10 @@ struct SettingsView: View {
             Section {
                 Toggle("Repères sonores (début/fin)", isOn: $settings.soundEffectsEnabled)
                 Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
-            } header: { Text("Application") }
+                Toggle("Tourner en arrière-plan (masquer l'icône du Dock)", isOn: $settings.runInBackground)
+            } header: { Text("Application") } footer: {
+                Text("En arrière-plan, FlowScribe reste accessible par le raccourci clavier et l'icône de la barre de menus (en haut).")
+            }
 
             Section {
                 APIKeysPanel(settings: settings)
@@ -32,13 +35,11 @@ struct SettingsView: View {
 
             Section {
                 Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
-                    Text("Toujours").tag(0)
                     Text("1 jour").tag(1)
                     Text("1 semaine").tag(7)
-                    Text("2 semaines").tag(14)
-                    Text("1 mois").tag(30)
-                    Text("6 mois").tag(180)
-                    Text("1 an").tag(365)
+                    Text("15 jours").tag(15)
+                    Text("30 jours").tag(30)
+                    Text("Toujours").tag(0)
                 }
             } header: { Text("Conservation") }
 
@@ -64,6 +65,7 @@ struct SettingsView: View {
         .onAppear {
             permissions.refresh()
             micDevices = CoreAudioDevices.inputDevices()
+            if ![1, 7, 15, 30, 0].contains(settings.retentionDays) { settings.retentionDays = 30 }
         }
     }
 

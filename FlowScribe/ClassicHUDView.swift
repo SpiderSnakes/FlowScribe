@@ -20,8 +20,9 @@ struct ClassicHUDView: View {
         }
         .frame(width: 380)
         .background(panelFill, in: RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(Theme.hairline, lineWidth: 1))
-        .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.45), radius: 16, y: 6)
     }
 
     private var waveform: some View {

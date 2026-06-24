@@ -92,7 +92,7 @@ final class RecordingHUD {
         panel.level = .statusBar
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false   // l'ombre arrondie est gérée côté SwiftUI (évite le contour rectangulaire)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         return panel
     }

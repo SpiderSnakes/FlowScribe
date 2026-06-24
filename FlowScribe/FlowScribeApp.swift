@@ -16,7 +16,7 @@ struct FlowScribeApp: App {
     @State private var bridge: HotkeyBridge?
 
     var body: some Scene {
-        WindowGroup("FlowScribe") {
+        WindowGroup(id: "main") {
             Group {
                 if settings.hasSeenOnboarding {
                     RootView(settings: settings, permissions: permissions,
@@ -34,7 +34,7 @@ struct FlowScribeApp: App {
         }
         .windowStyle(.hiddenTitleBar)   // pas de grand bandeau « FlowScribe » ; pastilles superposées
         MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
-            Button("Quitter") { NSApplication.shared.terminate(nil) }
+            MenuBarContent()
         }
     }
 
@@ -94,6 +94,7 @@ struct FlowScribeApp: App {
     @MainActor
     private func setup() async {
         permissions.refresh()   // l'onboarding pilote les demandes ; pas d'invite groupée au lancement
+        NSApp.setActivationPolicy(settings.runInBackground ? .accessory : .regular)
         guard controller == nil else { return }
         // Seed : un mode « Par défaut » dérivé des réglages courants à la 1re exécution.
         if modes.modes.isEmpty {
@@ -187,5 +188,18 @@ struct FlowScribeApp: App {
         case .failed:
             return "Échec — réessaie"
         }
+    }
+}
+
+/// Menu de la barre de menus : ouvrir la fenêtre (même en mode arrière-plan) et quitter.
+private struct MenuBarContent: View {
+    @Environment(\.openWindow) private var openWindow
+    var body: some View {
+        Button("Ouvrir FlowScribe") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        Divider()
+        Button("Quitter") { NSApplication.shared.terminate(nil) }
     }
 }

@@ -26,7 +26,7 @@ struct RootView: View {
                 VisualEffectBackground(material: .sidebar).ignoresSafeArea()
                 detailContent
             }
-            .safeAreaInset(edge: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 HStack {
                     Spacer()
                     Menu {
@@ -48,7 +48,13 @@ struct RootView: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                 }
-                .padding(.horizontal, 12).padding(.vertical, 6)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(.bar)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [Color.black.opacity(0.10), .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: 10).offset(y: 10).allowsHitTesting(false)
+                }
             }
             .onAppear {
                 micDevices = CoreAudioDevices.inputDevices()
@@ -72,8 +78,10 @@ struct RootView: View {
             ModesView(modes: modes, settings: settings, onActivate: onActivateMode)
         case .fichiers:
             FilesView(settings: settings, onTranscribeFile: onTranscribeFile)
-        case .vocabulaire:
-            VocabularyView(glossary: glossary, profiles: profiles, settings: settings)
+        case .corrections:
+            CorrectionsView(profiles: profiles)
+        case .calibration:
+            CalibrationSectionView(glossary: glossary, profiles: profiles, settings: settings)
         case .reglages:
             SettingsView(settings: settings, permissions: permissions)
         }

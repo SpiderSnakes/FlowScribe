@@ -103,7 +103,9 @@ private struct ModeEditor: View {
                     Picker("Modèle", selection: $mode.modelId) {
                         ForEach(mode.provider.models, id: \.id) { Text($0.displayName).tag($0.id) }
                     }
-                    TextField("Langue (ex. fr-FR)", text: $mode.localeIdentifier)
+                    Picker("Langue", selection: $mode.localeIdentifier) {
+                        ForEach(AppLocales.all, id: \.id) { Text($0.name).tag($0.id) }
+                    }
                     Toggle("Mettre la musique en pause", isOn: $mode.pauseMusic)
                 }
                 Section("Nettoyage IA") {

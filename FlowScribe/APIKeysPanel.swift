@@ -29,13 +29,16 @@ struct APIKeysPanel: View {
                 Picker("", selection: $provider) {
                     ForEach(providers, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                .labelsHidden().fixedSize()
+                .labelsHidden()
             }
 
             field("Clé API") {
-                SecureField("collez votre clé…", text: $keyDraft)
-                    .textFieldStyle(.roundedBorder)
-                statusIcon
+                HStack(spacing: 8) {
+                    SecureField("collez votre clé ici…", text: $keyDraft)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                    statusIcon
+                }
             }
 
             if let msg = message {
@@ -62,8 +65,8 @@ struct APIKeysPanel: View {
 
     @ViewBuilder
     private func field<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 10) {
-            Text(label).frame(width: 90, alignment: .leading).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.callout).foregroundStyle(.secondary)
             content()
         }
     }

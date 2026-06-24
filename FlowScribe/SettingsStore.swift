@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import FlowScribeCore
 
 /// Style de la fenêtre d'enregistrement (HUD).
@@ -64,6 +65,13 @@ final class SettingsStore {
     var launchAtLogin: Bool {
         didSet { LaunchAtLogin.set(launchAtLogin) }
     }
+    /// Tourner en arrière-plan : masque l'icône du Dock (l'app reste accessible via la barre de menus + raccourci).
+    var runInBackground: Bool {
+        didSet {
+            defaults.set(runInBackground, forKey: "runInBackground")
+            NSApp.setActivationPolicy(runInBackground ? .accessory : .regular)
+        }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -79,6 +87,7 @@ final class SettingsStore {
         self.selectedMicrophoneUID = defaults.string(forKey: "selectedMicrophoneUID") ?? ""
         self.soundEffectsEnabled = defaults.bool(forKey: "soundEffectsEnabled")
         self.launchAtLogin = LaunchAtLogin.isEnabled
+        self.runInBackground = defaults.bool(forKey: "runInBackground")
     }
 
     func apiKey(for provider: EngineProvider) -> String {

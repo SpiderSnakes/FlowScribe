@@ -54,8 +54,9 @@ struct LiveHUDView: View {
             }
             .frame(width: 240, height: 56)
             .background(panelFill, in: Capsule())
+            .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
-            .shadow(color: .black.opacity(0.4), radius: 14, y: 6)
+            .shadow(color: .black.opacity(0.45), radius: 14, y: 6)
         }
     }
 }
