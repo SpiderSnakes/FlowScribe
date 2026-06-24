@@ -5,14 +5,7 @@ struct SettingsView: View {
     @Bindable var settings: SettingsStore
     let permissions: PermissionsModel
 
-    @State private var keyDrafts: [String: String] = [:]
-    @State private var results: [String: KeyTestResult] = [:]
-    @State private var testing: Set<String> = []
     @State private var micDevices: [AudioInputDevice] = []
-
-    private var cloudProviders: [EngineProvider] {
-        EngineProvider.allCases.filter { $0.secretKey != nil }
-    }
 
     var body: some View {
         Form {
@@ -32,24 +25,10 @@ struct SettingsView: View {
             } header: { Text("Application") }
 
             Section {
-                ForEach(cloudProviders, id: \.self) { p in
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 8) {
-                            SecureField(p.displayName, text: draftBinding(p))
-                            statusIcon(for: p)
-                            Button("Tester") { test(p) }
-                                .disabled(testing.contains(p.secretKey ?? ""))
-                        }
-                        if let msg = message(for: p) {
-                            Text(msg).font(.caption).foregroundStyle(resultColor(for: p))
-                        }
-                    }
-                }
-                Button("Enregistrer les clés") { saveAllKeys() }
-                    .buttonStyle(.glassProminent)
-            } header: { Text("Clés API") } footer: {
-                Text("Tes clés restent dans le Trousseau macOS. Le moteur, le modèle et la langue se choisissent par mode (onglet Modes).")
-            }
+                APIKeysPanel(settings: settings)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            } header: { Text("Clés API") }
 
             Section {
                 Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
@@ -83,33 +62,9 @@ struct SettingsView: View {
         .buttonStyle(.glass)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            for p in cloudProviders { if let k = p.secretKey { keyDrafts[k] = settings.apiKey(for: p) } }
             permissions.refresh()
             micDevices = CoreAudioDevices.inputDevices()
         }
-    }
-
-    @ViewBuilder
-    private func statusIcon(for p: EngineProvider) -> some View {
-        let key = p.secretKey ?? ""
-        if testing.contains(key) {
-            ProgressView().controlSize(.small)
-        } else if let r = results[key] {
-            Image(systemName: r.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(r.ok ? .green : .red)
-        }
-    }
-
-    private func message(for p: EngineProvider) -> String? {
-        guard let key = p.secretKey, let r = results[key] else { return nil }
-        if r.ok { return "Clé valide" + (r.status.map { " (HTTP \($0))" } ?? "") }
-        let status = r.status.map { "\($0) — " } ?? ""
-        return "Échec : \(status)\(r.message ?? "erreur inconnue")"
-    }
-
-    private func resultColor(for p: EngineProvider) -> Color {
-        guard let key = p.secretKey, let r = results[key] else { return .secondary }
-        return r.ok ? .green : .red
     }
 
     private func permissionRow(_ label: String, ok: Bool) -> some View {
@@ -118,33 +73,6 @@ struct SettingsView: View {
                 .foregroundStyle(ok ? .green : .orange)
             Text(label)
             Spacer()
-        }
-    }
-
-    private func draftBinding(_ p: EngineProvider) -> Binding<String> {
-        let key = p.secretKey ?? p.rawValue
-        return Binding(get: { keyDrafts[key] ?? "" }, set: { keyDrafts[key] = $0 })
-    }
-
-    private func saveAllKeys() {
-        for p in cloudProviders {
-            if let key = p.secretKey, let draft = keyDrafts[key] { settings.setAPIKey(draft, for: p) }
-        }
-    }
-
-    private func test(_ p: EngineProvider) {
-        guard let config = p.config, let key = p.secretKey else { return }
-        let value = keyDrafts[key] ?? settings.apiKey(for: p)
-        guard !value.isEmpty else {
-            results[key] = KeyTestResult(ok: false, status: nil, message: "Aucune clé saisie")
-            return
-        }
-        testing.insert(key)
-        Task {
-            let engine = CloudTranscriptionEngine(config: config, apiKey: value, transport: URLSessionTransport())
-            let r = await engine.validateKey()
-            results[key] = r
-            testing.remove(key)
         }
     }
 }
