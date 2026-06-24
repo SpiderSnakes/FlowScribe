@@ -22,6 +22,17 @@ struct SettingsView: View {
             } header: { Text("Enregistrement") }
 
             Section {
+                Picker("Palette", selection: $settings.ambiancePalette) {
+                    ForEach(AmbiancePalette.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker("Intensité des effets", selection: $settings.ambianceIntensity) {
+                    ForEach(AmbianceIntensity.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+            } header: { Text("Apparence") } footer: {
+                Text("La palette colore les effets (aurores, fils, halos). L'intensité règle leur animation ; « Réduire les animations » du système est toujours respecté.")
+            }
+
+            Section {
                 Toggle("Repères sonores (début/fin)", isOn: $settings.soundEffectsEnabled)
                 Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
                 Toggle("Tourner en arrière-plan (masquer l'icône du Dock)", isOn: $settings.runInBackground)
