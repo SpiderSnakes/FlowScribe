@@ -15,7 +15,6 @@ struct CalibrationView: View {
     @State private var recorder = MicrophoneRecorder(outputDirectory: URL.temporaryDirectory.appending(path: "FlowScribeCalibration"))
 
     private var provider: EngineProvider { settings.defaultProvider }
-    private var engineId: String { provider.engineId }
 
     private var reference: String {
         let terms = glossary.terms
@@ -110,7 +109,7 @@ struct CalibrationView: View {
 
     private func saveAccepted() {
         for rule in proposed where accepted.contains(rule.heard) {
-            profiles.add(rule, for: engineId)
+            profiles.add(rule, for: CorrectionScope.global)
         }
         phase = .idle
         proposed = []; accepted = []
