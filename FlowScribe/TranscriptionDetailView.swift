@@ -6,7 +6,7 @@ struct TranscriptionDetailView: View {
     let record: TranscriptionRecord
     let history: HistoryModel
     let profiles: CorrectionProfileStore
-    let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
+    let onRetranscribe: (TranscriptionRecord, EngineProvider, String) async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var playback = AudioPlayback()
@@ -15,24 +15,37 @@ struct TranscriptionDetailView: View {
     @State private var ruleAdded = false
     @State private var working = false
 
-    private var audioURL: URL { history.audioURL(record.audioFileName) }
-    private var hasAudio: Bool { history.audioExists(record.audioFileName) }
-    private var wordCount: Int { record.text.split { $0 == " " || $0 == "\n" }.count }
+    /// Version courante de l'enregistrement (l'historique est @Observable) : après une re-transcription
+    /// en place, la vue se rafraîchit toute seule (texte/statut à jour) sans rouvrir la feuille.
+    private var current: TranscriptionRecord {
+        history.records.first { $0.id == record.id } ?? record
+    }
+    private var audioURL: URL { history.audioURL(current.audioFileName) }
+    private var hasAudio: Bool { history.audioExists(current.audioFileName) }
+    private var wordCount: Int { current.text.split { $0 == " " || $0 == "\n" }.count }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
             ScrollView {
-                Text(record.text)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
+                if current.text.isEmpty {
+                    Text(current.failed ? "Pas encore de transcription — relance-la ci-dessous."
+                                        : "Transcription vide.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                } else {
+                    Text(current.text)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                }
             }
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
             .frame(maxHeight: .infinity)
 
-            createRule
+            if !current.text.isEmpty { createRule }
 
             HStack {
                 if hasAudio {
@@ -41,18 +54,27 @@ struct TranscriptionDetailView: View {
                               systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
                     }.buttonStyle(.glass)
                 }
-                Button { copy(record.text) } label: { Label("Copier", systemImage: "doc.on.doc") }
-                    .buttonStyle(.glass)
+                if !current.text.isEmpty {
+                    Button { copy(current.text) } label: { Label("Copier", systemImage: "doc.on.doc") }
+                        .buttonStyle(.glass)
+                }
                 Menu {
                     ForEach(EngineProvider.transcriptionProviders, id: \.self) { p in
-                        Button(p.displayName) { retranscribe(p) }
+                        Section(p.displayName) {
+                            ForEach(p.models, id: \.id) { m in
+                                Button(m.displayName) { retranscribe(p, m.id) }
+                            }
+                        }
                     }
-                } label: { Label("Re-transcrire", systemImage: "arrow.clockwise") }
+                } label: {
+                    Label(working ? "Transcription…" : (current.failed ? "Transcrire" : "Re-transcrire"),
+                          systemImage: "arrow.clockwise")
+                }
                 .disabled(!hasAudio || working)
                 .fixedSize()
                 Spacer()
                 Button(role: .destructive) {
-                    playback.stop(); history.delete(record); dismiss()
+                    playback.stop(); history.delete(current); dismiss()
                 } label: { Label("Supprimer", systemImage: "trash") }
                     .buttonStyle(.glass)
                 Button("Fermer") { playback.stop(); dismiss() }.buttonStyle(.glassProminent)
@@ -64,14 +86,26 @@ struct TranscriptionDetailView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(RecordFormat.dateLabel(record.date)).font(.system(size: 16, weight: .semibold))
-            HStack(spacing: 10) {
-                Label(record.engineId, systemImage: "cpu")
-                if let d = record.duration { Label(RecordFormat.duration(d), systemImage: "clock") }
-                Label("\(wordCount) mots", systemImage: "text.word.spacing")
+        VStack(alignment: .leading, spacing: 8) {
+            Text(RecordFormat.dateLabel(current.date)).font(.system(size: 16, weight: .semibold))
+            if current.failed {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(current.errorMessage ?? "La transcription a échoué.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            } else {
+                HStack(spacing: 10) {
+                    if !current.engineId.isEmpty { Label(current.engineId, systemImage: "cpu") }
+                    if let d = current.duration { Label(RecordFormat.duration(d), systemImage: "clock") }
+                    Label("\(wordCount) mots", systemImage: "text.word.spacing")
+                }
+                .font(.caption).foregroundStyle(.secondary)
             }
-            .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -104,9 +138,9 @@ struct TranscriptionDetailView: View {
         ruleHeard = ""; ruleReplacement = ""; ruleAdded = true
     }
 
-    private func retranscribe(_ p: EngineProvider) {
+    private func retranscribe(_ p: EngineProvider, _ modelId: String) {
         working = true
-        Task { await onRetranscribe(record, p); working = false }
+        Task { await onRetranscribe(current, p, modelId); working = false }
     }
 
     private func copy(_ text: String) {

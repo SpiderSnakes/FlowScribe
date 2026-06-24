@@ -15,12 +15,46 @@ final class DictationControllerTests: XCTestCase {
         func deliver(_ text: String) { delivered.append(text) }
     }
 
+    struct ThrowingEngine: TranscriptionEngine {
+        let id: String
+        let capabilities = EngineCapabilities(supportsStreaming: false, supportsKeyterms: false, isLocal: false)
+        func transcribeFile(at url: URL, locale: Locale) async throws -> String { throw URLError(.timedOut) }
+    }
+
     func makeController() -> (DictationController, SpyRecorder, SpyOutput) {
         let rec = SpyRecorder(); let out = SpyOutput()
         let service = TranscriptionService(primary: MockEngine(id: "mock", result: "salut"),
                                            fallback: MockEngine(id: "apple", result: "local"))
         let c = DictationController(recorder: rec, service: service, output: out, locale: Locale(identifier: "fr-FR"))
         return (c, rec, out)
+    }
+
+    /// Contrôleur dont la transcription échoue toujours (les deux moteurs lèvent).
+    func makeFailingController() -> (DictationController, SpyRecorder, SpyOutput) {
+        let rec = SpyRecorder(); let out = SpyOutput()
+        let service = TranscriptionService(primary: ThrowingEngine(id: "p"),
+                                           fallback: ThrowingEngine(id: "a"))
+        let c = DictationController(recorder: rec, service: service, output: out, locale: Locale(identifier: "fr-FR"))
+        return (c, rec, out)
+    }
+
+    func test_failure_savesRecoverableRecord_keepsAudio_noDelivery() async {
+        let (c, _, out) = makeFailingController()
+        var saved: TranscriptionRecord?
+        var finished: TranscriptionOutcome?
+        c.onRecord = { saved = $0 }
+        c.onFinish = { finished = $0 }
+        c.pressDown(); await c.pressUp(kind: .hold)
+        // L'échec est historisé (récupérable) : audio conservé, texte vide, marqueur d'erreur.
+        XCTAssertNotNil(saved)
+        XCTAssertTrue(saved?.failed ?? false)
+        XCTAssertEqual(saved?.text, "")
+        XCTAssertEqual(saved?.audioFileName, "a.caf")
+        XCTAssertNotNil(saved?.errorMessage)
+        // Rien n'est collé, et l'issue reste un échec.
+        XCTAssertEqual(out.delivered, [])
+        XCTAssertEqual(finished, .failed)
+        XCTAssertEqual(c.state, .idle)
     }
 
     func test_tap_startsThenStops_andDelivers() async {

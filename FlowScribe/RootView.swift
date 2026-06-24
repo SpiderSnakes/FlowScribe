@@ -9,7 +9,7 @@ struct RootView: View {
     let history: HistoryModel
     let modes: ModesModel
     let onToggleRecord: () -> Void
-    let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
+    let onRetranscribe: (TranscriptionRecord, EngineProvider, String) async -> Void
     let onTranscribeFile: (URL, EngineProvider, String) async -> Bool
     let onActivateMode: (Mode) -> Void
 

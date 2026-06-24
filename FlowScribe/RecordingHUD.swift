@@ -4,9 +4,11 @@ import FlowScribeCore
 
 struct ResultHUDView: View {
     let message: String
+    var isError: Bool = false
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.sky)
+            Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(isError ? Color.orange : Theme.sky)
             Text(message)
                 .font(.system(size: 13, weight: .medium))
                 .fixedSize(horizontal: true, vertical: false)
@@ -38,15 +40,16 @@ final class RecordingHUD {
     }
 
     /// Toast de résultat (moteur utilisé / repli), restylé bleu, auto-masqué.
-    func showResult(_ message: String) {
+    func showResult(_ message: String, isError: Bool = false) {
         let panel = self.panel ?? makePanel()
-        panel.contentView = clearHosting(ResultHUDView(message: message))
+        panel.contentView = clearHosting(ResultHUDView(message: message, isError: isError))
         showingResult = true
         sizeToFit(panel, fallback: NSSize(width: 200, height: 44))
         panel.orderFrontRegardless()
         self.panel = panel
+        let seconds = isError ? 3.5 : 1.6   // un échec reste affiché plus longtemps
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.6))
+            try? await Task.sleep(for: .seconds(seconds))
             self.hide()
         }
     }

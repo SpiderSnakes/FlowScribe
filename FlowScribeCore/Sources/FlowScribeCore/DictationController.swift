@@ -110,6 +110,11 @@ public final class DictationController {
                 duration: recording.duration))
         case .failed:
             lastTranscript = nil
+            // On historise quand même l'échec (audio conservé) pour pouvoir relancer plus tard.
+            onRecord?(TranscriptionRecord(
+                id: UUID(), date: Date(), text: "", engineId: "",
+                locale: locale.identifier, audioFileName: recording.url.lastPathComponent,
+                duration: recording.duration, errorMessage: "La transcription a échoué — relance-la quand tu veux."))
         }
         transcriptionTask = nil
         setState(.idle)

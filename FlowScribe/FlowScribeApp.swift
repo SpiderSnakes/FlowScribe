@@ -22,7 +22,7 @@ struct FlowScribeApp: App {
                     RootView(settings: settings, permissions: permissions,
                              glossary: glossary, profiles: profiles, history: history, modes: modes,
                              onToggleRecord: { toggleRecord() },
-                             onRetranscribe: { r, p in await retranscribe(r, with: p) },
+                             onRetranscribe: { r, p, modelId in await retranscribe(r, with: p, modelId: modelId) },
                              onTranscribeFile: { url, p, modelId in await transcribeFile(url, with: p, modelId: modelId) },
                              onActivateMode: { applyMode($0) })
                 } else {
@@ -45,19 +45,26 @@ struct FlowScribeApp: App {
         Task { await c.pressUp(kind: .tap) }
     }
 
+    /// Relance la transcription d'un enregistrement avec un modèle précis, et met à jour
+    /// l'entrée EN PLACE (même id, même audio) — pas de doublon, l'audio reste intact même en cas d'échec.
     @MainActor
-    private func retranscribe(_ r: TranscriptionRecord, with provider: EngineProvider) async {
+    private func retranscribe(_ r: TranscriptionRecord, with provider: EngineProvider, modelId: String) async {
         let url = history.audioURL(r.audioFileName)
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let apple = AppleSpeechEngine()
         let primary = provider.makeEngine(apiKey: settings.apiKey(for: provider),
-                                          modelId: settings.selectedModelId(for: provider),
+                                          modelId: modelId,
                                           transport: URLSessionTransport()) ?? apple
         let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
         let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: r.locale))
-        if case let .success(text, engineId, _) = outcome {
-            history.add(TranscriptionRecord(id: UUID(), date: Date(), text: text, engineId: engineId,
-                                            locale: r.locale, audioFileName: r.audioFileName, duration: r.duration))
+        switch outcome {
+        case let .success(text, engineId, _):
+            history.update(TranscriptionRecord(id: r.id, date: r.date, text: text, engineId: engineId,
+                                               locale: r.locale, audioFileName: r.audioFileName, duration: r.duration))
+        case .failed:
+            history.update(TranscriptionRecord(id: r.id, date: r.date, text: "", engineId: "",
+                                               locale: r.locale, audioFileName: r.audioFileName, duration: r.duration,
+                                               errorMessage: "La transcription a encore échoué — réessaie."))
         }
     }
 
@@ -136,7 +143,14 @@ struct FlowScribeApp: App {
                 else if s == .transcribing { SoundEffects.playStop() }
             }
         }
-        c.onFinish = { [hud] outcome in hud.showResult(Self.resultMessage(for: outcome)) }
+        c.onFinish = { [hud] outcome in
+            if case .failed = outcome {
+                // Pas d'alerte intrusive : l'enregistrement est gardé dans l'historique pour relance.
+                hud.showResult("Échec — gardé dans l'historique", isError: true)
+            } else {
+                hud.showResult(Self.resultMessage(for: outcome))
+            }
+        }
         c.onCancel = { [hud, settings] in
             hud.hide()
             if settings.soundEffectsEnabled { SoundEffects.playStop() }

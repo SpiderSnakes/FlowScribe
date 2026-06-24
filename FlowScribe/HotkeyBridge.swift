@@ -40,15 +40,17 @@ final class HotkeyBridge {
         }
     }
 
-    /// Échap annule la dictée en cours (local : consomme l'événement ; global : observe).
+    /// Échap annule la dictée PENDANT l'enregistrement seulement (local : consomme l'événement ; global : observe).
+    /// On n'annule pas pendant `.transcribing` : une fois le micro coupé, on laisse la transcription
+    /// aller au bout (au pire le résultat finit dans le presse-papier / l'historique).
     private func registerEscape() {
         localEscMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return event }
+            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state == .recording else { return event }
             Task { await self.controller.cancel() }
             return nil   // consomme l'Échap (n'annule pas une feuille/un champ par-dessus)
         }
         globalEscMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state != .idle else { return }
+            guard let self, event.keyCode == self.escapeKeyCode, self.controller.state == .recording else { return }
             Task { await self.controller.cancel() }
         }
     }
