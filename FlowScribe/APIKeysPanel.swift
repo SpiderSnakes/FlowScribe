@@ -33,12 +33,9 @@ struct APIKeysPanel: View {
             }
 
             field("Clé API") {
-                HStack(spacing: 8) {
-                    SecureField("collez votre clé ici…", text: $keyDraft)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                    statusIcon
-                }
+                SecureField("collez votre clé ici…", text: $keyDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
             }
 
             if let msg = message {
@@ -47,7 +44,8 @@ struct APIKeysPanel: View {
                 Text("Clé enregistrée dans le Trousseau.").font(.caption).foregroundStyle(.secondary)
             }
 
-            HStack {
+            HStack(spacing: 8) {
+                statusIcon
                 Spacer()
                 Button("Tester") { test() }
                     .buttonStyle(.glass)
