@@ -73,8 +73,8 @@ struct RootView: View {
         switch section {
         case .accueil:
             HomeView(settings: settings, permissions: permissions, history: history,
-                     modes: modes, onToggleRecord: onToggleRecord, onRetranscribe: onRetranscribe,
-                     onActivateMode: onActivateMode)
+                     profiles: profiles, modes: modes, onToggleRecord: onToggleRecord,
+                     onRetranscribe: onRetranscribe, onActivateMode: onActivateMode)
         case .modes:
             ModesView(modes: modes, settings: settings, onActivate: onActivateMode)
         case .fichiers:
@@ -84,7 +84,7 @@ struct RootView: View {
         case .calibration:
             CalibrationSectionView(glossary: glossary, profiles: profiles, settings: settings)
         case .reglages:
-            SettingsView(settings: settings, permissions: permissions)
+            SettingsView(settings: settings, permissions: permissions, history: history)
         }
     }
 }

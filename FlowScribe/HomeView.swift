@@ -5,12 +5,14 @@ struct HomeView: View {
     let settings: SettingsStore
     let permissions: PermissionsModel
     let history: HistoryModel
+    let profiles: CorrectionProfileStore
     let modes: ModesModel
     let onToggleRecord: () -> Void
     let onRetranscribe: (TranscriptionRecord, EngineProvider) async -> Void
     let onActivateMode: (Mode) -> Void
 
     @State private var query = ""
+    @State private var selected: TranscriptionRecord?
 
     private var filtered: [TranscriptionRecord] {
         query.isEmpty ? history.records
@@ -55,32 +57,26 @@ struct HomeView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(item: $selected) { r in
+            TranscriptionDetailView(record: r, history: history, profiles: profiles, onRetranscribe: onRetranscribe)
+        }
     }
 
     private func row(_ r: TranscriptionRecord) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(r.text).lineLimit(3)
-            HStack(spacing: 8) {
-                Text(r.date, style: .relative).font(.caption).foregroundStyle(.secondary)
-                Text("· \(r.engineId)").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("Copier") { copy(r.text) }.buttonStyle(.borderless)
-                Menu("Re-transcrire") {
-                    ForEach(EngineProvider.transcriptionProviders, id: \.self) { p in
-                        Button(p.displayName) { Task { await onRetranscribe(r, p) } }
-                    }
+        Button { selected = r } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(r.text).lineLimit(2).foregroundStyle(.primary)
+                HStack(spacing: 8) {
+                    Text(RecordFormat.dateLabel(r.date))
+                    Text("· \(r.engineId)")
+                    if let d = r.duration { Text("· \(RecordFormat.duration(d))") }
                 }
-                .disabled(!history.audioExists(r.audioFileName))
-                .fixedSize()
-                Button(role: .destructive) { history.delete(r) } label: { Image(systemName: "trash") }
-                    .buttonStyle(.borderless)
+                .font(.caption).foregroundStyle(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.vertical, 4)
-    }
-
-    private func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
     }
 }

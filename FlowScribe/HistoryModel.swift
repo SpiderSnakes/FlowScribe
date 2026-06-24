@@ -25,6 +25,15 @@ final class HistoryModel {
         records = store.records
     }
 
+    /// Supprime toutes les transcriptions et leurs fichiers audio.
+    func deleteAll() {
+        for r in store.records {
+            store.delete(id: r.id)
+            deleteAudio(r.audioFileName)
+        }
+        records = store.records
+    }
+
     func purge(maxAgeDays: Int) {
         for r in RetentionPolicy.expired(store.records, now: Date(), maxAgeDays: maxAgeDays) {
             store.delete(id: r.id)

@@ -4,8 +4,10 @@ import FlowScribeCore
 struct SettingsView: View {
     @Bindable var settings: SettingsStore
     let permissions: PermissionsModel
+    let history: HistoryModel
 
     @State private var micDevices: [AudioInputDevice] = []
+    @State private var confirmDeleteAll = false
 
     var body: some View {
         Form {
@@ -34,10 +36,19 @@ struct SettingsView: View {
             } header: { Text("Clés API") }
 
             Section {
+                Button(role: .destructive) { confirmDeleteAll = true } label: {
+                    Label("Supprimer tous les enregistrements", systemImage: "trash")
+                }
+                .disabled(history.records.isEmpty)
                 Picker("Conserver les enregistrements", selection: $settings.retentionDays) {
                     ForEach(RetentionOption.all) { Text($0.title).tag($0.days) }
                 }
             } header: { Text("Conservation") }
+            .confirmationDialog("Supprimer toutes les transcriptions et leurs enregistrements audio ?",
+                                isPresented: $confirmDeleteAll, titleVisibility: .visible) {
+                Button("Tout supprimer", role: .destructive) { history.deleteAll() }
+                Button("Annuler", role: .cancel) {}
+            }
 
             Section("Autorisations") {
                 permissionRow("Micro", ok: permissions.mic == .granted)
