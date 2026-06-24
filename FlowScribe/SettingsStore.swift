@@ -74,11 +74,11 @@ final class SettingsStore {
     }
     /// Palette du rebranding (pilote les accents : aurores, fils, halos).
     var ambiancePalette: AmbiancePalette {
-        didSet { defaults.set(ambiancePalette.rawValue, forKey: "ambiancePalette") }
+        didSet { defaults.set(ambiancePalette.rawValue, forKey: "ambiancePalette"); notifyChange() }
     }
     /// Intensité des effets animés du rebranding.
     var ambianceIntensity: AmbianceIntensity {
-        didSet { defaults.set(ambianceIntensity.rawValue, forKey: "ambianceIntensity") }
+        didSet { defaults.set(ambianceIntensity.rawValue, forKey: "ambianceIntensity"); notifyChange() }
     }
     /// UID du micro choisi (vide = micro système par défaut).
     var selectedMicrophoneUID: String {
