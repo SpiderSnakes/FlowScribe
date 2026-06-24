@@ -31,9 +31,12 @@ final class HUDModel {
 
     private func startTicking() {
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }
+        // mode .common : continue d'animer pendant le suivi d'événements (menus, scroll) — sinon la waveform fige.
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     private func tick() {
@@ -62,8 +65,9 @@ struct LiveHUDView: View {
                 let midY = size.height / 2
                 let maxH = size.height * 0.82
                 let recording = model.state == .recording
+                let level = recording ? HUDWaveform.gain(model.level) : 0.0   // lu une fois par frame (cohérence)
                 for i in 0..<bars {
-                    let gained = recording ? HUDWaveform.gain(model.level) : 0.0
+                    let gained = level
                     let shimmer = 0.85 + 0.15 * sin(t * 5.0 + Double(i) * 0.6)
                     let idle = 0.12 + 0.07 * sin(t * 2.2 + Double(i) * 0.45)
                     let frac = max(idle, gained * shimmer)

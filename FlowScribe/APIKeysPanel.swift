@@ -138,9 +138,10 @@ struct APIKeysPanel: View {
     private func toggle(_ p: EngineProvider) {
         if editing == p { editing = nil; return }
         editing = p
-        keyDraft = settings.apiKey(for: p)
+        keyDraft = settings.apiKey(for: p)   // toujours rechargée depuis le Trousseau (jamais d'état périmé)
         result = nil
         saveResult = nil
+        refreshFlags()
     }
 
     private func save(_ p: EngineProvider) {

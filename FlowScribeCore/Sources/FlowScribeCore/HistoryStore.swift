@@ -3,6 +3,9 @@ import Foundation
 public protocol HistoryStore: Sendable {
     var records: [TranscriptionRecord] { get }   // plus récent d'abord
     func add(_ record: TranscriptionRecord)
+    /// Remplace l'enregistrement de même id de façon atomique (une seule prise de verrou, une seule persistance) :
+    /// pas de fenêtre où l'entrée disparaît (re-transcription en place).
+    func update(_ record: TranscriptionRecord)
     func delete(id: UUID)
 }
 
@@ -15,6 +18,10 @@ public final class InMemoryHistoryStore: HistoryStore, @unchecked Sendable {
     }
     public func add(_ record: TranscriptionRecord) {
         lock.lock(); defer { lock.unlock() }; storage.append(record)
+    }
+    public func update(_ record: TranscriptionRecord) {
+        lock.lock(); defer { lock.unlock() }
+        storage.removeAll { $0.id == record.id }; storage.append(record)
     }
     public func delete(id: UUID) {
         lock.lock(); defer { lock.unlock() }; storage.removeAll { $0.id == id }
@@ -40,6 +47,9 @@ public final class JSONHistoryStore: HistoryStore, @unchecked Sendable {
     }
     public func add(_ record: TranscriptionRecord) {
         lock.lock(); storage.append(record); lock.unlock(); persist()
+    }
+    public func update(_ record: TranscriptionRecord) {
+        lock.lock(); storage.removeAll { $0.id == record.id }; storage.append(record); lock.unlock(); persist()
     }
     public func delete(id: UUID) {
         lock.lock(); storage.removeAll { $0.id == id }; lock.unlock(); persist()

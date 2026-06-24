@@ -15,8 +15,12 @@ struct HomeView: View {
     @State private var selected: TranscriptionRecord?
 
     private var filtered: [TranscriptionRecord] {
-        query.isEmpty ? history.records
-            : history.records.filter { $0.text.localizedCaseInsensitiveContains(query) }
+        guard !query.isEmpty else { return history.records }
+        return history.records.filter {
+            $0.text.localizedCaseInsensitiveContains(query)
+                // les échecs ont un texte vide : on les retrouve via leur message d'erreur
+                || ($0.errorMessage?.localizedCaseInsensitiveContains(query) ?? false)
+        }
     }
 
     var body: some View {

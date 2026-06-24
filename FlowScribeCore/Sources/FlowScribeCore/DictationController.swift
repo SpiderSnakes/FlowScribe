@@ -109,6 +109,7 @@ public final class DictationController {
                 locale: locale.identifier, audioFileName: recording.url.lastPathComponent,
                 duration: recording.duration))
         case .failed:
+            if Task.isCancelled { return }   // annulée → ne pas créer de faux enregistrement d'échec
             lastTranscript = nil
             // On historise quand même l'échec (audio conservé) pour pouvoir relancer plus tard.
             onRecord?(TranscriptionRecord(

@@ -14,4 +14,17 @@ final class HistoryStoreTests: XCTestCase {
         store.delete(id: older)
         XCTAssertEqual(store.records.map(\.id), [newer])
     }
+
+    func test_update_replacesInPlace_noDuplicate() {
+        let store = InMemoryHistoryStore()
+        let id = UUID()
+        store.add(rec(id, 10))
+        var updated = rec(id, 10)
+        updated = TranscriptionRecord(id: id, date: updated.date, text: "corrigé",
+                                      engineId: "e2", locale: "fr-FR", audioFileName: updated.audioFileName, duration: 1)
+        store.update(updated)
+        XCTAssertEqual(store.records.count, 1)            // pas de doublon
+        XCTAssertEqual(store.records.first?.text, "corrigé")
+        XCTAssertEqual(store.records.first?.engineId, "e2")
+    }
 }

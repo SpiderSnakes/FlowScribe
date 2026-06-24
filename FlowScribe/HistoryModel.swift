@@ -21,9 +21,9 @@ final class HistoryModel {
 
     /// Remplace un enregistrement en place (même id), SANS toucher au fichier audio —
     /// utilisé par la re-transcription pour mettre à jour le texte/statut sans dupliquer ni perdre l'audio.
+    /// `store.update` est atomique (une persistance), donc pas de fenêtre où l'entrée disparaît.
     func update(_ r: TranscriptionRecord) {
-        store.delete(id: r.id)   // ne supprime PAS l'audio (contrairement à delete(_:))
-        store.add(r)
+        store.update(r)
         records = store.records
     }
 
