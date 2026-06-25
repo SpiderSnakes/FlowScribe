@@ -221,7 +221,13 @@ private struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
     var body: some View {
         Button("Ouvrir FlowScribe") {
-            openWindow(id: "main")
+            // Si la fenêtre existe mais est masquée (orderOut), la réafficher directement évite
+            // qu'openWindow n'en crée un doublon ; sinon on en (re)crée une.
+            if let window = MainWindowRef.shared.window {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                openWindow(id: "main")
+            }
             NSApp.activate(ignoringOtherApps: true)
         }
         Divider()

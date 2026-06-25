@@ -41,7 +41,7 @@ struct SettingsView: View {
                 Toggle("Démarrer masqué (fenêtre invisible au lancement)", isOn: $settings.launchHidden)
                     .disabled(!settings.runInBackground)
             } header: { Text("Application") } footer: {
-                Text("Pour une app totalement invisible (façon SuperWhisper) : active « arrière-plan » + « démarrer masqué » et décoche l'icône de la barre des menus. La dictée reste pilotée par le raccourci ⌥Espace ; pour rouvrir les réglages, relance FlowScribe (Spotlight) — la fenêtre réapparaît. Fermer la fenêtre ne quitte pas l'app.")
+                Text("Pour une app totalement invisible (façon SuperWhisper) : active « arrière-plan » + « démarrer masqué » et décoche l'icône de la barre des menus. La dictée reste pilotée par le raccourci ⌥Espace ; pour rouvrir les réglages, clique « Ouvrir FlowScribe » dans la barre des menus, ou relance FlowScribe via Spotlight — la fenêtre réapparaît. Fermer la fenêtre ne quitte l'app qu'en mode normal (en arrière-plan, elle continue).")
             }
 
             Section {
