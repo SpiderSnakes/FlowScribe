@@ -65,7 +65,8 @@ struct HomeView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(item: $selected) { r in
+        // Popover (et non sheet) → un clic à l'extérieur referme et revient à la fenêtre principale.
+        .popover(item: $selected, arrowEdge: .leading) { r in
             TranscriptionDetailView(record: r, history: history, profiles: profiles, onRetranscribe: onRetranscribe)
         }
     }

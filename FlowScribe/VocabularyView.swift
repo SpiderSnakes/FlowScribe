@@ -71,10 +71,11 @@ struct CalibrationSectionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .sheet(isPresented: $showCalibration) {
+        // Popovers (et non sheets) → un clic à l'extérieur referme et revient à la fenêtre principale.
+        .popover(isPresented: $showCalibration, arrowEdge: .leading) {
             CalibrationView(glossary: glossary, profiles: profiles, settings: settings)
         }
-        .sheet(isPresented: $showAI) {
+        .popover(isPresented: $showAI, arrowEdge: .leading) {
             AICalibrationView(settings: settings, profiles: profiles, history: history)
         }
     }
