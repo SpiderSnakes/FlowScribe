@@ -26,10 +26,16 @@ struct ClassicHUDView: View {
         .borderGlow(active: model.state == .recording, cornerRadius: 18)
     }
 
-    /// Maillage de lignes horizontales sinueuses (gris/blanc, opacités dégradées) : au repos
-    /// elles ondulent doucement ; quand on parle, l'amplitude gonfle vers le centre. Tout est
-    /// dérivé du temps continu + du niveau lissé → fluide, organique, sans saccade.
-    private let lineCount = 6
+    /// Maillage dense de lignes horizontales sinueuses : chaque ligne a sa propre phase/fréquence/
+    /// amplitude/vitesse (pseudo-aléatoire déterministe → organique mais stable, sans scintillement).
+    /// Au repos elles ondulent doucement ; quand on parle, l'amplitude gonfle vers le centre.
+    private let lineCount = 18
+
+    /// Hash déterministe → 0…1. Pas de Date/random : reproductible à chaque frame (aucun jitter).
+    private func rnd(_ seed: Int, _ salt: Int) -> Double {
+        let x = sin(Double(seed) * 12.9898 + Double(salt) * 78.233) * 43758.5453
+        return x - floor(x)
+    }
 
     private var waveform: some View {
         let animate = ambiance.animates(.hud, reduceMotion: reduceMotion, windowActive: true)
@@ -40,34 +46,44 @@ struct ClassicHUDView: View {
                 let w = Double(size.width)
                 let h = Double(size.height)
                 let midY = h / 2
-                let maxSwing = h * 0.42
-                let steps = 72
+                let maxSwing = h * 0.46
+                let steps = 64
                 for j in 0..<lineCount {
-                    let phase: Double = Double(j) * 0.7
+                    let phase: Double = rnd(j, 1) * 6.283
                     let dir: Double = (j % 2 == 0) ? 1 : -1
-                    let freq: Double = 1.6 + Double(j) * 0.18
-                    let amp: Double = maxSwing * (0.16 + 0.84 * level) * (1.0 - 0.06 * Double(j))
-                    // Constantes hoistées hors de la boucle (indépendantes de `s`) : type-check + perf.
+                    let freq: Double = 1.3 + rnd(j, 2) * 1.7                       // 1.3…3.0, désordonné
+                    let amp: Double = maxSwing * (0.10 + 0.90 * level) * (0.55 + 0.45 * rnd(j, 3))
+                    let harm: Double = 0.25 + rnd(j, 4) * 0.45                      // ratio d'harmonique
+                    let sp1: Double = 2.6 + rnd(j, 5) * 2.0                         // défilement plus rapide
+                    let sp2: Double = 1.7 + rnd(j, 6) * 1.4
+                    let breath: Double = 0.82 + 0.18 * sin(t * (0.4 + rnd(j, 7)) + phase)   // respiration lente par ligne
                     let k1: Double = 2 * Double.pi * freq
                     let k2: Double = Double.pi * freq
-                    let travel1: Double = dir * t * 1.7 + phase
-                    let travel2: Double = (-dir) * t * 1.1 + phase * 1.3
+                    let travel1: Double = dir * t * sp1 + phase
+                    let travel2: Double = (-dir) * t * sp2 + phase * 1.3
                     var path = Path()
                     for s in 0...steps {
                         let xN: Double = Double(s) / Double(steps)
                         let envelope: Double = sin(Double.pi * xN)   // 0 aux bords, 1 au centre → « monte vers le milieu »
                         let primary: Double = sin(k1 * xN + travel1)
                         let secondary: Double = sin(k2 * xN + travel2)
-                        let wave: Double = primary + 0.35 * secondary
+                        let wave: Double = (primary + harm * secondary) * breath
                         let yOffset: Double = envelope * amp * wave
                         let point = CGPoint(x: CGFloat(xN * w), y: CGFloat(midY - yOffset))
                         if s == 0 { path.move(to: point) } else { path.addLine(to: point) }
                     }
                     ctx.stroke(path,
                                with: .color(HUDWaveform.lineColor(index: j, of: lineCount, level: level, accents: ambiance.palette.auroraColors)),
-                               lineWidth: CGFloat(1.8 - 0.12 * Double(j)))
+                               lineWidth: CGFloat(1.4 - 0.04 * Double(j)))
                 }
             }
+            // Fondu transparent doux sur les bords G/D (plus de cassure nette).
+            .mask(LinearGradient(stops: [
+                .init(color: .clear, location: 0.0),
+                .init(color: .black, location: 0.08),
+                .init(color: .black, location: 0.92),
+                .init(color: .clear, location: 1.0),
+            ], startPoint: .leading, endPoint: .trailing))
         }
     }
 

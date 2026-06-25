@@ -41,6 +41,13 @@ struct StrandsView: View {
                     ctx.stroke(path, with: .color(color), lineWidth: CGFloat(1.8 - 0.12 * Double(j)))
                 }
             }
+            // Fondu transparent doux sur les bords (ends souples, pas de cassure nette).
+            .mask(LinearGradient(stops: [
+                .init(color: .clear, location: 0.0),
+                .init(color: .black, location: 0.06),
+                .init(color: .black, location: 0.94),
+                .init(color: .clear, location: 1.0),
+            ], startPoint: .leading, endPoint: .trailing))
         }
         .allowsHitTesting(false)
     }
