@@ -1,43 +1,46 @@
 import SwiftUI
 import FlowScribeCore
 
-/// Calibration assistée par IA : un modèle écrit lit les transcriptions et propose des règles.
+/// Calibration assistée par IA : un modèle écrit lit les transcriptions et propose des règles GLOBALES.
+/// Système unifié : pas de choix de modèle — on prend automatiquement un fournisseur écrit configuré.
 struct AICalibrationView: View {
     let settings: SettingsStore
     let profiles: CorrectionProfileStore
     let history: HistoryModel
     @Environment(\.dismiss) private var dismiss
 
-    @State private var provider: EngineProvider = .openAI
-    @State private var modelId = EngineProvider.openAI.defaultTextModelId
+    @State private var provider: EngineProvider?
+    @State private var modelId = ""
     @State private var running = false
     @State private var ran = false
     @State private var proposals: [CorrectionProposal] = []
     @State private var accepted: Set<String> = []
 
-    private var key: String { settings.apiKey(for: provider) }
+    private var key: String { provider.map { settings.apiKey(for: $0) } ?? "" }
+    private var modelName: String {
+        provider?.textModels.first(where: { $0.id == modelId })?.displayName ?? provider?.displayName ?? "—"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Calibration par IA").font(.system(size: 18, weight: .semibold))
-            Text("Un modèle écrit lit tes dernières transcriptions et propose des corrections (surtout les noms propres mal transcrits). Tu choisis lesquelles garder — elles deviennent des règles globales.")
+            Text("Une IA écrite lit tes dernières transcriptions et propose des corrections (surtout les noms propres mal transcrits). Tu choisis lesquelles garder — elles deviennent des règles globales.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
 
-            HStack {
-                Picker("Modèle écrit", selection: $provider) {
-                    ForEach(EngineProvider.textProviders, id: \.self) { Text($0.displayName).tag($0) }
+            if provider != nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "cpu").foregroundStyle(.secondary)
+                    Text("Modèle utilisé :").foregroundStyle(.secondary)
+                    Text(modelName).fontWeight(.medium)
                 }
-                .onChange(of: provider) { _, p in
-                    if !p.textModels.contains(where: { $0.id == modelId }) { modelId = p.defaultTextModelId }
-                }
-                Picker("", selection: $modelId) {
-                    ForEach(provider.textModels, id: \.id) { Text($0.displayName).tag($0.id) }
-                }.labelsHidden()
-            }
-
-            if key.isEmpty {
-                Label("Ajoute ta clé \(provider.displayName) dans Réglages → Clés API.", systemImage: "exclamationmark.triangle")
-                    .font(.caption).foregroundStyle(.orange)
+                .font(.callout)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+            } else {
+                Label("Aucune clé IA écrite configurée. Ajoute une clé (OpenAI, Anthropic, Mistral ou Google) dans Réglages → Clés API.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             }
 
             Button(action: run) {
@@ -45,7 +48,7 @@ struct AICalibrationView: View {
                 else { Label("Analyser mes transcriptions", systemImage: "sparkles") }
             }
             .buttonStyle(.glassProminent)
-            .disabled(running || key.isEmpty || history.records.isEmpty)
+            .disabled(running || provider == nil || history.records.isEmpty)
 
             Divider()
 
@@ -83,9 +86,22 @@ struct AICalibrationView: View {
         .frame(width: 560, height: 540)
         .background(VisualEffectBackground(material: .sidebar).ignoresSafeArea())
         .onAppear {
-            if settings.cleanupProvider.capabilities.contains(.text) { provider = settings.cleanupProvider }
-            modelId = provider.defaultTextModelId
+            if let (p, m) = resolveProvider() { provider = p; modelId = m }
         }
+    }
+
+    /// Choisit automatiquement un fournisseur écrit : (1) celui de la reformulation s'il a une clé,
+    /// (2) sinon le premier fournisseur écrit avec une clé, (3) sinon aucun.
+    private func resolveProvider() -> (EngineProvider, String)? {
+        let cleanup = settings.cleanupProvider
+        if cleanup.capabilities.contains(.text), !settings.apiKey(for: cleanup).isEmpty {
+            let m = settings.cleanupModelId.isEmpty ? cleanup.defaultTextModelId : settings.cleanupModelId
+            return (cleanup, m)
+        }
+        for p in EngineProvider.textProviders where !settings.apiKey(for: p).isEmpty {
+            return (p, p.defaultTextModelId)
+        }
+        return nil
     }
 
     private func binding(_ p: CorrectionProposal) -> Binding<Bool> {
@@ -94,10 +110,10 @@ struct AICalibrationView: View {
     }
 
     private func run() {
+        guard let p = provider else { return }
         running = true; ran = false; proposals = []; accepted = []
         let texts = Array(history.records.prefix(50).map(\.text))
-        let p = provider
-        let m = modelId.isEmpty ? provider.defaultTextModelId : modelId
+        let m = modelId.isEmpty ? p.defaultTextModelId : modelId
         let k = key
         Task {
             let result = await AICalibration.propose(transcriptions: texts, provider: p, model: m,

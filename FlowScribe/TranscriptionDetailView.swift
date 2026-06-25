@@ -54,6 +54,11 @@ struct TranscriptionDetailView: View {
                         Label(playback.isPlaying ? "Arrêter" : "Écouter",
                               systemImage: playback.isPlaying ? "stop.fill" : "play.fill")
                     }.buttonStyle(.glass)
+                    Button { NSWorkspace.shared.activateFileViewerSelecting([audioURL]) } label: {
+                        Label("Finder", systemImage: "folder")
+                    }
+                    .buttonStyle(.glass)
+                    .help("Voir le fichier audio dans le Finder")
                 }
                 if !current.text.isEmpty {
                     Button { copy(current.text) } label: { Label("Copier", systemImage: "doc.on.doc") }
