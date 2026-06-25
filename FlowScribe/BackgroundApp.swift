@@ -50,14 +50,15 @@ struct WindowAccessor: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     @MainActor final class Coordinator {
-        private var didHide = false
+        private var launchHandled = false
         func capture(_ window: NSWindow?, hideOnLaunch: Bool) {
             guard let window else { return }
             MainWindowRef.shared.window = window
-            if hideOnLaunch && !didHide {
-                didHide = true
-                window.orderOut(nil)
-            }
+            // Le masquage ne vaut QU'au premier affichage (lancement). Un changement de réglage en cours
+            // de session ne doit pas masquer la fenêtre ouverte → on verrouille après la première capture.
+            guard !launchHandled else { return }
+            launchHandled = true
+            if hideOnLaunch { window.orderOut(nil) }
         }
     }
 }

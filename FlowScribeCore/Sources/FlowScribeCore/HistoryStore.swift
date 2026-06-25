@@ -46,18 +46,22 @@ public final class JSONHistoryStore: HistoryStore, @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }; return storage.sorted { $0.date > $1.date }
     }
     public func add(_ record: TranscriptionRecord) {
-        lock.lock(); storage.append(record); lock.unlock(); persist()
+        lock.lock(); defer { lock.unlock() }
+        storage.append(record); persistLocked()
     }
     public func update(_ record: TranscriptionRecord) {
-        lock.lock(); storage.removeAll { $0.id == record.id }; storage.append(record); lock.unlock(); persist()
+        lock.lock(); defer { lock.unlock() }
+        storage.removeAll { $0.id == record.id }; storage.append(record); persistLocked()
     }
     public func delete(id: UUID) {
-        lock.lock(); storage.removeAll { $0.id == id }; lock.unlock(); persist()
+        lock.lock(); defer { lock.unlock() }
+        storage.removeAll { $0.id == id }; persistLocked()
     }
-    private func persist() {
-        lock.lock(); let snap = storage; lock.unlock()
+    /// Écrit SOUS le verrou : sérialise snapshot ET écriture → pas d'entrelacement entre threads (anti perte).
+    private func persistLocked() {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601
-        if let data = try? enc.encode(snap) { try? data.write(to: url, options: .atomic) }
+        do { try enc.encode(storage).write(to: url, options: .atomic) }
+        catch { AppLog.error("HistoryStore", "échec d'écriture de l'historique : \(error)") }
     }
 }

@@ -20,7 +20,7 @@ struct APIKeysPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Vos propres clés").font(.system(size: 16, weight: .semibold))
+                Text("Tes clés API").font(.system(size: 16, weight: .semibold))
                 Text("Une clé par fournisseur, stockée dans le Trousseau. 🎙️ Oral = transcription · ✍️ Écrit = reformulation et calibration. Apple fonctionne sans clé.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -64,7 +64,7 @@ struct APIKeysPanel: View {
     @ViewBuilder
     private func editor(_ p: EngineProvider) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SecureField("collez votre clé \(p.displayName)…", text: $keyDraft)
+            SecureField("colle ta clé \(p.displayName)…", text: $keyDraft)
                 .textFieldStyle(.roundedBorder)
                 .font(.system(.body, design: .monospaced))
 

@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreAudio
+import Synchronization
 
 public protocol AudioRecorder: Sendable {
     func start() throws
@@ -16,9 +17,10 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
     private var currentURL: URL?
     private var startedAt: Date?
     private var configObserver: NSObjectProtocol?
-    /// Mis à `true` si une écriture de buffer échoue ou si la config audio change en cours d'enregistrement
-    /// (route/format) — l'audio peut alors être tronqué. Journalisé à l'arrêt.
-    private nonisolated(unsafe) var writeFailed = false
+    /// `true` si une écriture de buffer échoue ou si la config audio change en cours d'enregistrement
+    /// (route/format) — l'audio peut alors être tronqué. `Atomic` : écrit sans verrou depuis le thread audio
+    /// temps réel + le thread de notification, lu sur le thread principal (lock-free, sûr).
+    private let writeFailed = Atomic<Bool>(false)
 
     /// Niveau de voix live (RMS 0→1) pendant l'enregistrement.
     public var onLevel: (@Sendable (Float) -> Void)?
@@ -44,9 +46,9 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         AppLog.info("AudioRecorder", "start \(url.lastPathComponent) — \(Int(format.sampleRate))Hz \(format.channelCount)ch")
         let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
         let levelHandler = onLevel
-        writeFailed = false
+        writeFailed.store(false, ordering: .relaxed)
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
-            do { try audioFile.write(from: buffer) } catch { self?.writeFailed = true }
+            do { try audioFile.write(from: buffer) } catch { self?.writeFailed.store(true, ordering: .relaxed) }
             guard let levelHandler, let ch = buffer.floatChannelData else { return }
             let n = Int(buffer.frameLength)
             let level = AudioLevel.rms(Array(UnsafeBufferPointer(start: ch[0], count: n)))
@@ -59,7 +61,7 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         // plein écran…), ce qui casse le format figé du fichier → on le journalise.
         configObserver = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
-            self?.writeFailed = true
+            self?.writeFailed.store(true, ordering: .relaxed)
             AppLog.warn("AudioRecorder", "changement de configuration audio pendant l'enregistrement (route/format)")
         }
         self.file = audioFile
@@ -77,7 +79,7 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         file = nil   // libère la dernière référence → l'AVAudioFile écrit ses en-têtes/flush sur disque
         currentURL = nil; startedAt = nil
         let durStr = duration.map { String(format: "%.1fs", $0) } ?? "?"
-        if writeFailed {
+        if writeFailed.load(ordering: .relaxed) {
             AppLog.warn("AudioRecorder", "stop \(url.lastPathComponent) (\(durStr)) — écriture incomplète possible (config/route a changé)")
         } else {
             AppLog.info("AudioRecorder", "stop \(url.lastPathComponent) (\(durStr))")

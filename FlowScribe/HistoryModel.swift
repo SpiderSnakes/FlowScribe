@@ -62,5 +62,8 @@ final class HistoryModel {
 
     func audioURL(_ name: String) -> URL { recordingsDir.appending(path: name) }
     func audioExists(_ name: String) -> Bool { FileManager.default.fileExists(atPath: audioURL(name).path) }
-    private func deleteAudio(_ name: String) { try? FileManager.default.removeItem(at: audioURL(name)) }
+    private func deleteAudio(_ name: String) {
+        guard !name.isEmpty else { return }   // sécurité : éviter de cibler le dossier recordings entier
+        try? FileManager.default.removeItem(at: audioURL(name))
+    }
 }

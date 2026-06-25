@@ -166,8 +166,8 @@ struct FlowScribeApp: App {
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
-        settings.onChange = { [weak c, settings, profiles, hud, recorder] in
-            guard let c else { return }
+        settings.onChange = { [weak c, weak settings, profiles, hud, recorder] in
+            guard let c, let settings else { return }
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)

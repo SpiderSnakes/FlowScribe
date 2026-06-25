@@ -26,19 +26,20 @@ public struct TextLLMService: Sendable {
 
     private func buildRequest(system: String, user: String) throws -> URLRequest {
         switch provider {
-        case .openAI, .mistral: return chatRequest(system: system, user: user)
-        case .anthropic: return anthropicRequest(system: system, user: user)
-        case .google: return geminiRequest(system: system, user: user)
+        case .openAI, .mistral: return try chatRequest(system: system, user: user)
+        case .anthropic: return try anthropicRequest(system: system, user: user)
+        case .google: return try geminiRequest(system: system, user: user)
         case .appleLocal, .elevenLabs: throw TextLLMError.unsupportedProvider
         }
     }
 
     // OpenAI / Mistral — chat completions (format identique)
-    private func chatRequest(system: String, user: String) -> URLRequest {
+    private func chatRequest(system: String, user: String) throws -> URLRequest {
         let endpoint = provider == .openAI
             ? "https://api.openai.com/v1/chat/completions"
             : "https://api.mistral.ai/v1/chat/completions"
-        var req = URLRequest(url: URL(string: endpoint)!)
+        guard let url = URL(string: endpoint) else { throw TextLLMError.badResponse }
+        var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -52,8 +53,9 @@ public struct TextLLMService: Sendable {
     }
 
     // Anthropic — Messages API
-    private func anthropicRequest(system: String, user: String) -> URLRequest {
-        var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+    private func anthropicRequest(system: String, user: String) throws -> URLRequest {
+        guard let url = URL(string: "https://api.anthropic.com/v1/messages") else { throw TextLLMError.badResponse }
+        var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -68,9 +70,11 @@ public struct TextLLMService: Sendable {
         return req
     }
 
-    // Google Gemini — generateContent (clé en query)
-    private func geminiRequest(system: String, user: String) -> URLRequest {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
+    // Google Gemini — generateContent (clé en query, encodée proprement via URLComponents)
+    private func geminiRequest(system: String, user: String) throws -> URLRequest {
+        var comps = URLComponents(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")
+        comps?.queryItems = [URLQueryItem(name: "key", value: apiKey)]   // percent-encode la clé
+        guard let url = comps?.url else { throw TextLLMError.badResponse }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")

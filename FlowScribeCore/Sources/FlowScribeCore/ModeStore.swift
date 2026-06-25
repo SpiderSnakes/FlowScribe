@@ -53,25 +53,26 @@ public final class JSONModeStore: ModeStore, @unchecked Sendable {
     public var activeModeId: UUID? { lock.lock(); defer { lock.unlock() }; return payload.activeModeId }
 
     public func upsert(_ mode: Mode) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         if let i = payload.modes.firstIndex(where: { $0.id == mode.id }) { payload.modes[i] = mode } else { payload.modes.append(mode) }
-        lock.unlock(); persist()
+        persistLocked()
     }
     public func delete(id: UUID) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         payload.modes.removeAll { $0.id == id }
         if payload.activeModeId == id { payload.activeModeId = payload.modes.first?.id }
-        lock.unlock(); persist()
+        persistLocked()
     }
     public func setActive(_ id: UUID) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         if payload.modes.contains(where: { $0.id == id }) { payload.activeModeId = id }
-        lock.unlock(); persist()
+        persistLocked()
     }
 
-    private func persist() {
-        lock.lock(); let snapshot = payload; lock.unlock()
+    /// Écrit SOUS le verrou → sérialise snapshot ET écriture (pas d'entrelacement entre threads).
+    private func persistLocked() {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: url, options: .atomic) }
+        do { try JSONEncoder().encode(payload).write(to: url, options: .atomic) }
+        catch { AppLog.error("ModeStore", "échec d'écriture des modes : \(error)") }
     }
 }

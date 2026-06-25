@@ -37,16 +37,18 @@ public final class JSONGlossaryStore: GlossaryStore, @unchecked Sendable {
     public func add(_ term: String) {
         let t = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return }
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         if !storage.contains(where: { $0.caseInsensitiveCompare(t) == .orderedSame }) { storage.append(t) }
-        lock.unlock(); persist()
+        persistLocked()
     }
     public func remove(_ term: String) {
-        lock.lock(); storage.removeAll { $0.caseInsensitiveCompare(term) == .orderedSame }; lock.unlock(); persist()
+        lock.lock(); defer { lock.unlock() }
+        storage.removeAll { $0.caseInsensitiveCompare(term) == .orderedSame }; persistLocked()
     }
-    private func persist() {
-        lock.lock(); let snap = storage; lock.unlock()
+    /// Écrit SOUS le verrou → sérialise snapshot ET écriture (pas d'entrelacement entre threads).
+    private func persistLocked() {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(snap) { try? data.write(to: url, options: .atomic) }
+        do { try JSONEncoder().encode(storage).write(to: url, options: .atomic) }
+        catch { AppLog.error("GlossaryStore", "échec d'écriture du glossaire : \(error)") }
     }
 }

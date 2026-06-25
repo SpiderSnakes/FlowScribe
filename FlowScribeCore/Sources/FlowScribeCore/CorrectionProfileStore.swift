@@ -43,18 +43,20 @@ public final class JSONCorrectionProfileStore: CorrectionProfileStore, @unchecke
         lock.lock(); defer { lock.unlock() }; return byEngine[engineId] ?? []
     }
     public func setRules(_ rules: [CorrectionRule], for engineId: String) {
-        lock.lock(); byEngine[engineId] = rules; lock.unlock(); persist()
+        lock.lock(); defer { lock.unlock() }
+        byEngine[engineId] = rules; persistLocked()
     }
     public func add(_ rule: CorrectionRule, for engineId: String) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         var arr = byEngine[engineId] ?? []
         if !arr.contains(where: { $0.heard.caseInsensitiveCompare(rule.heard) == .orderedSame }) { arr.append(rule) }
         byEngine[engineId] = arr
-        lock.unlock(); persist()
+        persistLocked()
     }
-    private func persist() {
-        lock.lock(); let snapshot = byEngine; lock.unlock()
+    /// Écrit SOUS le verrou → sérialise snapshot ET écriture (pas d'entrelacement entre threads).
+    private func persistLocked() {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: url, options: .atomic) }
+        do { try JSONEncoder().encode(byEngine).write(to: url, options: .atomic) }
+        catch { AppLog.error("CorrectionProfileStore", "échec d'écriture des corrections : \(error)") }
     }
 }
