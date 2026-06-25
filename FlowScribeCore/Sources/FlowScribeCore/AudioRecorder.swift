@@ -52,15 +52,16 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
             let level = AudioLevel.rms(Array(UnsafeBufferPointer(start: ch[0], count: n)))
             DispatchQueue.main.async { levelHandler(level) }
         }
-        // La config audio peut changer en cours d'enregistrement (changement de route/périphérique,
-        // bascule d'espace plein écran…), ce qui casse le format figé du fichier → on le journalise.
+        engine.prepare()
+        try engine.start()
+        // Observateur installé seulement APRÈS un démarrage réussi (sinon il fuiterait si start() lève).
+        // La config audio peut changer en cours d'enregistrement (route/périphérique, bascule d'espace
+        // plein écran…), ce qui casse le format figé du fichier → on le journalise.
         configObserver = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
             self?.writeFailed = true
             AppLog.warn("AudioRecorder", "changement de configuration audio pendant l'enregistrement (route/format)")
         }
-        engine.prepare()
-        try engine.start()
         self.file = audioFile
         self.currentURL = url
         self.startedAt = Date()
