@@ -26,7 +26,13 @@ struct RootView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(section: $section)
-                .background(ambiance.palette.base.opacity(0.25))
+                .background {                       // même grainient que le contenu → une seule surface continue
+                    GrainientBackground()
+                    Color.black.opacity(0.07)       // sidebar à peine plus sombre : distincte sans cassure de contraste
+                }
+                .overlay(alignment: .trailing) {
+                    Rectangle().fill(Theme.hairline).frame(width: 1)   // séparation fine et douce
+                }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             ZStack {
@@ -57,11 +63,7 @@ struct RootView: View {
                 }
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
-                .background(.bar)
-                .overlay(alignment: .bottom) {
-                    LinearGradient(colors: [Color.black.opacity(0.10), .clear], startPoint: .top, endPoint: .bottom)
-                        .frame(height: 10).offset(y: 10).allowsHitTesting(false)
-                }
+                // pas de barre opaque : le sélecteur de micro flotte directement sur le grainient (intégré)
             }
             .task {
                 // énumération CoreAudio hors du thread principal (AudioInputDevice est Sendable)
