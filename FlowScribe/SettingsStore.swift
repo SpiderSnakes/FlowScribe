@@ -99,6 +99,15 @@ final class SettingsStore {
             NSApp.setActivationPolicy(runInBackground ? .accessory : .regular)
         }
     }
+    /// Affiche l'icône dans la barre des menus (décocher = app totalement invisible ; rouvrir via Spotlight).
+    var showMenuBarIcon: Bool {
+        didSet { defaults.set(showMenuBarIcon, forKey: "showMenuBarIcon") }
+    }
+    /// Démarrer masqué : au lancement (ex. ouverture de session), aucune fenêtre n'apparaît — l'app tourne
+    /// en tâche de fond. On rouvre les réglages en relançant l'app (Spotlight) ou via l'icône barre des menus.
+    var launchHidden: Bool {
+        didSet { defaults.set(launchHidden, forKey: "launchHidden") }
+    }
 
     init(secrets: SecretStore) {
         self.secrets = secrets
@@ -119,6 +128,8 @@ final class SettingsStore {
         self.soundEffectsEnabled = defaults.bool(forKey: "soundEffectsEnabled")
         self.launchAtLogin = LaunchAtLogin.isEnabled
         self.runInBackground = defaults.bool(forKey: "runInBackground")
+        self.showMenuBarIcon = defaults.object(forKey: "showMenuBarIcon") as? Bool ?? true   // visible par défaut
+        self.launchHidden = defaults.bool(forKey: "launchHidden")
     }
 
     func apiKey(for provider: EngineProvider) -> String {

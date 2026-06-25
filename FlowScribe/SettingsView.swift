@@ -37,8 +37,11 @@ struct SettingsView: View {
                 Toggle("Repères sonores (début/fin)", isOn: $settings.soundEffectsEnabled)
                 Toggle("Lancer FlowScribe au démarrage de session", isOn: $settings.launchAtLogin)
                 Toggle("Tourner en arrière-plan (masquer l'icône du Dock)", isOn: $settings.runInBackground)
+                Toggle("Afficher l'icône dans la barre des menus", isOn: $settings.showMenuBarIcon)
+                Toggle("Démarrer masqué (fenêtre invisible au lancement)", isOn: $settings.launchHidden)
+                    .disabled(!settings.runInBackground)
             } header: { Text("Application") } footer: {
-                Text("En arrière-plan, FlowScribe reste accessible par le raccourci clavier et l'icône de la barre de menus (en haut).")
+                Text("Pour une app totalement invisible (façon SuperWhisper) : active « arrière-plan » + « démarrer masqué » et décoche l'icône de la barre des menus. La dictée reste pilotée par le raccourci ⌥Espace ; pour rouvrir les réglages, relance FlowScribe (Spotlight) — la fenêtre réapparaît. Fermer la fenêtre ne quitte pas l'app.")
             }
 
             Section {

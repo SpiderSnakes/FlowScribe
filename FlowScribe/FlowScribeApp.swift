@@ -3,6 +3,7 @@ import FlowScribeCore
 
 @main
 struct FlowScribeApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var permissions = PermissionsModel()
     @State private var settings = SettingsStore(secrets: KeychainSecretStore())
     @State private var glossary = JSONGlossaryStore(url: URL.applicationSupportDirectory.appending(path: "FlowScribe/glossary.json"))
@@ -32,10 +33,14 @@ struct FlowScribeApp: App {
             .frame(minWidth: 720, minHeight: 480)
             .environment(\.ambiance, Ambiance(palette: BrandPalette(settings.ambiancePalette),
                                               intensity: settings.ambianceIntensity))
+            .background(WindowAccessor(hideOnLaunch:
+                settings.hasSeenOnboarding && settings.runInBackground && settings.launchHidden))
             .task { await setup() }
         }
         .windowStyle(.hiddenTitleBar)   // pas de grand bandeau « FlowScribe » ; pastilles superposées
-        MenuBarExtra("FlowScribe", systemImage: "mic.fill") {
+        MenuBarExtra("FlowScribe", systemImage: "mic.fill",
+                     isInserted: Binding(get: { settings.showMenuBarIcon },
+                                         set: { settings.showMenuBarIcon = $0 })) {
             MenuBarContent()
         }
     }
