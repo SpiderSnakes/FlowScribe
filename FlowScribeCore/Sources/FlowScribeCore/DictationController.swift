@@ -95,7 +95,8 @@ public final class DictationController {
     }
 
     private func runTranscription(recording: AudioRecording) async {
-        let outcome = await service.transcribe(fileAt: recording.url, locale: locale)
+        AppLog.info("Dictation", "transcription de \(recording.url.lastPathComponent)")
+        let outcome = await service.transcribe(fileAt: recording.url, locale: locale, audioDuration: recording.duration)
         if Task.isCancelled { return }   // annulée pendant la transcription → on jette
         switch outcome {
         case let .success(text, engineId, _):

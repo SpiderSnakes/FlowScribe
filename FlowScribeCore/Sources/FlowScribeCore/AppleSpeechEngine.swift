@@ -15,21 +15,32 @@ public final class AppleSpeechEngine: TranscriptionEngine {
     public init() {}
 
     public func transcribeFile(at url: URL, locale: Locale) async throws -> String {
-        let transcriber = try await Self.makeReadyTranscriber(locale: locale)
+        let started = Date()
+        do {
+            let transcriber = try await Self.makeReadyTranscriber(locale: locale)
+            let audioFile = try AVAudioFile(forReading: url)
+            let fmt = audioFile.processingFormat
+            let secs = Double(audioFile.length) / max(1, fmt.sampleRate)
+            AppLog.info("AppleSpeech", "lecture \(url.lastPathComponent) — \(Int(fmt.sampleRate))Hz \(fmt.channelCount)ch ~\(String(format: "%.1f", secs))s")
 
-        async let collected: AttributedString = transcriber.results.reduce(into: AttributedString()) { acc, result in
-            acc += result.text
-        }
+            async let collected: AttributedString = transcriber.results.reduce(into: AttributedString()) { acc, result in
+                acc += result.text
+            }
 
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
-        let audioFile = try AVAudioFile(forReading: url)
-        if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
-            try await analyzer.finalizeAndFinish(through: lastSample)
-        } else {
-            await analyzer.cancelAndFinishNow()
+            let analyzer = SpeechAnalyzer(modules: [transcriber])
+            if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
+                try await analyzer.finalizeAndFinish(through: lastSample)
+            } else {
+                await analyzer.cancelAndFinishNow()
+            }
+            let text = String(try await collected.characters)
+            AppLog.info("AppleSpeech", "OK — \(text.count) car en \(String(format: "%.1f", Date().timeIntervalSince(started)))s")
+            return text
+        } catch {
+            // L'erreur réelle (souvent invisible jusqu'ici) est capturée dans le fichier de log.
+            AppLog.error("AppleSpeech", "échec après \(String(format: "%.1f", Date().timeIntervalSince(started)))s : \(error)")
+            throw error
         }
-        let attributed = try await collected
-        return String(attributed.characters)
     }
 
     /// Vérifie la disponibilité et installe le modèle de langue si nécessaire.

@@ -56,4 +56,12 @@ final class TranscriptionServiceTests: XCTestCase {
         let out = await service.transcribe(fileAt: URL(filePath: "/tmp/x.caf"), locale: .current)
         XCTAssertEqual(out, .success(text: "On déploie Dokploy ce soir", engineId: "p", usedFallback: false))
     }
+
+    func test_effectiveTimeout_scalesWithDuration() {
+        let service = TranscriptionService(primary: MockEngine(id: "p", result: "x"),
+                                           fallback: MockEngine(id: "a", result: "y"), timeoutSeconds: 30)
+        XCTAssertEqual(service.effectiveTimeout(for: nil), 30)       // durée inconnue → plancher
+        XCTAssertEqual(service.effectiveTimeout(for: 5), 30)        // courte → plancher 30s
+        XCTAssertEqual(service.effectiveTimeout(for: 60), 140)      // 60·2 + 20 (le on-device peut être lent)
+    }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import FlowScribeCore
 
 struct SettingsView: View {
@@ -59,6 +60,22 @@ struct SettingsView: View {
                                 isPresented: $confirmDeleteAll, titleVisibility: .visible) {
                 Button("Tout supprimer", role: .destructive) { history.deleteAll() }
                 Button("Annuler", role: .cancel) {}
+            }
+
+            Section {
+                Button {
+                    let url = AppLog.fileURL
+                    if FileManager.default.fileExists(atPath: url.path) {
+                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                    } else {
+                        NSWorkspace.shared.activateFileViewerSelecting([url.deletingLastPathComponent()])
+                    }
+                } label: { Label("Voir les journaux", systemImage: "doc.text.magnifyingglass") }
+                Button(role: .destructive) { AppLog.clear() } label: {
+                    Label("Vider les journaux", systemImage: "trash")
+                }
+            } header: { Text("Diagnostics") } footer: {
+                Text("Un fichier de journaux (transcriptions, erreurs) à transmettre en cas de souci. Vide-le avant de reproduire un bug pour n'envoyer que l'incident.")
             }
 
             Section("Autorisations") {

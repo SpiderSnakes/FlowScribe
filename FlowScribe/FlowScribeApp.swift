@@ -58,7 +58,7 @@ struct FlowScribeApp: App {
                                           modelId: modelId,
                                           transport: URLSessionTransport()) ?? apple
         let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
-        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: r.locale))
+        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: r.locale), audioDuration: r.duration)
         switch outcome {
         case let .success(text, engineId, _):
             history.update(TranscriptionRecord(id: r.id, date: r.date, text: text, engineId: engineId,
@@ -81,7 +81,7 @@ struct FlowScribeApp: App {
                                           modelId: modelId,
                                           transport: URLSessionTransport()) ?? apple
         let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
-        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: settings.localeIdentifier))
+        let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: settings.localeIdentifier), audioDuration: duration)
         guard case let .success(text, engineId, _) = outcome else { return false }
         history.add(TranscriptionRecord(id: id, date: Date(), text: text, engineId: engineId,
                                         locale: settings.localeIdentifier, audioFileName: name, duration: duration))
