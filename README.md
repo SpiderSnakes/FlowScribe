@@ -48,13 +48,10 @@ tu n'as pas configuré de clé.
 ## Installation (DMG)
 
 1. Télécharge `FlowScribe-1.0.dmg` depuis la page [Releases](../../releases).
-2. Ouvre le DMG, glisse **FlowScribe** dans **Applications**.
-3. Au **premier lancement**, comme l'app n'est pas notarisée par Apple : **clic droit sur
-   FlowScribe → Ouvrir** (puis confirme). Alternative en terminal :
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/FlowScribe.app
-   ```
-4. Accorde les autorisations demandées (**Micro**, **Reconnaissance vocale**, **Accessibilité** pour
+2. Ouvre le DMG, glisse **FlowScribe** dans **Applications**, lance-le.
+   L'app est **signée Developer ID et notarisée par Apple** → elle s'ouvre directement, **sans
+   avertissement Gatekeeper**.
+3. Accorde les autorisations demandées (**Micro**, **Reconnaissance vocale**, **Accessibilité** pour
    le collage). Tu peux les régler plus tard dans Réglages.
 
 ## Compiler depuis les sources
