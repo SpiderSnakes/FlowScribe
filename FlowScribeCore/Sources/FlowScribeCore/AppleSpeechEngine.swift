@@ -43,24 +43,38 @@ public final class AppleSpeechEngine: TranscriptionEngine {
         }
     }
 
-    /// Vérifie la disponibilité et installe le modèle de langue si nécessaire.
+    /// Pré-télécharge le modèle de la locale au lancement (best-effort, en tâche de fond) pour qu'il
+    /// soit prêt quand l'utilisateur dicte — le téléchargement on-device peut prendre du temps.
+    public static func prepareModel(locale: Locale) async {
+        do {
+            _ = try await makeReadyTranscriber(locale: locale)
+            AppLog.info("AppleSpeech", "modèle prêt (\(locale.identifier))")
+        } catch {
+            AppLog.warn("AppleSpeech", "préchargement du modèle (\(locale.identifier)) : \(error)")
+        }
+    }
+
+    /// Vérifie la disponibilité et installe le modèle de langue si nécessaire (avec journalisation détaillée).
     private static func makeReadyTranscriber(locale: Locale) async throws -> SpeechTranscriber {
         guard SpeechTranscriber.isAvailable else { throw AppleSpeechError.unavailable }
         guard let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
             throw AppleSpeechError.localeUnsupported
         }
         let transcriber = SpeechTranscriber(locale: supported, preset: .transcription)
-        switch await AssetInventory.status(forModules: [transcriber]) {
-        case .installed:
-            return transcriber
-        default:
-            if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-                try await request.downloadAndInstall()
-            }
-            guard await AssetInventory.status(forModules: [transcriber]) == .installed else {
-                throw AppleSpeechError.assetDownloadInProgress
-            }
-            return transcriber
+        let status = await AssetInventory.status(forModules: [transcriber])
+        if status == .installed { return transcriber }
+
+        AppLog.info("AppleSpeech", "modèle \(supported.identifier) non installé (statut \(String(describing: status))) — installation…")
+        if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+            try await request.downloadAndInstall()
+        } else {
+            AppLog.warn("AppleSpeech", "aucune requête d'installation disponible pour \(supported.identifier) (déjà en cours ?)")
         }
+        let after = await AssetInventory.status(forModules: [transcriber])
+        guard after == .installed else {
+            AppLog.error("AppleSpeech", "modèle \(supported.identifier) toujours non installé après tentative (statut \(String(describing: after)))")
+            throw AppleSpeechError.assetDownloadInProgress
+        }
+        return transcriber
     }
 }

@@ -53,6 +53,7 @@ public final class DictationController {
                 pressStartedRecording = true
                 mediaController?.pauseForDictation()
             } catch {
+                AppLog.error("Dictation", "démarrage de l'enregistrement impossible : \(error)")
                 setState(.idle)
             }
         } else {

@@ -118,6 +118,10 @@ struct FlowScribeApp: App {
         permissions.refresh()   // l'onboarding pilote les demandes ; pas d'invite groupée au lancement
         NSApp.setActivationPolicy(settings.runInBackground ? .accessory : .regular)
         guard controller == nil else { return }
+        // Pré-télécharge le modèle de transcription Apple (on-device) dès le lancement : il doit être
+        // installé AVANT la 1re dictée, sinon échec « assetDownloadInProgress ».
+        let localeId = settings.localeIdentifier
+        Task.detached { await AppleSpeechEngine.prepareModel(locale: Locale(identifier: localeId)) }
         // Seed : un mode « Par défaut » dérivé des réglages courants à la 1re exécution.
         if modes.modes.isEmpty {
             let m = Mode(name: "Par défaut", provider: settings.defaultProvider,

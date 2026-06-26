@@ -33,7 +33,9 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
 
     public func start() throws {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-        let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).caf")
+        // WAV (et non CAF) : format accepté par TOUS les fournisseurs (OpenAI/Mistral rejettent le .caf).
+        // AVAudioFile déduit le conteneur WAVE de l'extension ; on garde le format d'entrée (PCM flottant).
+        let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).wav")
         let input = engine.inputNode
         // Route vers le micro choisi (sinon micro système par défaut).
         if let uid = preferredDeviceUID, !uid.isEmpty,
