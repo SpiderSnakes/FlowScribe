@@ -34,8 +34,23 @@ xcodebuild -project FlowScribe.xcodeproj -scheme FlowScribe -configuration Relea
 
 [ -d "$APP" ] || { echo "ERREUR : app introuvable à $APP"; exit 1; }
 
+# Re-signature de distribution (déterministe) : xcodebuild peut produire une signature SANS horodatage
+# sécurisé et AVEC l'entitlement de débogage « get-task-allow » → notarisation refusée. On re-signe avec
+# le runtime durci (--options runtime), un horodatage sécurisé (--timestamp) et le fichier d'entitlements
+# de prod (qui ne contient PAS get-task-allow → l'entitlement de débogage est retiré). L'app est
+# autonome (KeyboardShortcuts est lié statiquement via SPM, aucun framework embarqué à re-signer).
+echo "==> Re-signature de distribution de l'app"
+codesign --force --options runtime --timestamp \
+  --entitlements "$ROOT/FlowScribe/FlowScribe.entitlements" \
+  --sign "$IDENTITY" "$APP"
+
 echo "==> Vérification de la signature de l'app"
 codesign --verify --deep --strict --verbose=2 "$APP"
+# Garde-fous : échouer TÔT si l'horodatage manque ou si get-task-allow est encore présent.
+codesign -dvvv "$APP" 2>&1 | grep -q "Timestamp=" || { echo "ERREUR : horodatage sécurisé absent"; exit 1; }
+if codesign -d --entitlements - "$APP" 2>/dev/null | tr -d '\0' | grep -q "get-task-allow"; then
+  echo "ERREUR : l'entitlement de débogage get-task-allow est toujours présent"; exit 1
+fi
 
 echo "==> Création du DMG : $(basename "$DMG")"
 rm -f "$DMG"

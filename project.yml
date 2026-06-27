@@ -13,6 +13,12 @@ settings:
     CODE_SIGN_IDENTITY: "Developer ID Application"
     DEVELOPMENT_TEAM: "Y8XLVL2758"
     ARCHS: arm64
+  configs:
+    # En Release (distribution), ne PAS injecter l'entitlement de débogage « get-task-allow » :
+    # Apple refuse la notarisation si l'exécutable le demande. (Debug le garde → débogueur OK.)
+    Release:
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+      OTHER_CODE_SIGN_FLAGS: "--timestamp"
 packages:
   FlowScribeCore:
     path: FlowScribeCore
