@@ -33,9 +33,12 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
 
     public func start() throws {
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
-        // WAV (et non CAF) : format accepté par TOUS les fournisseurs (OpenAI/Mistral rejettent le .caf).
-        // AVAudioFile déduit le conteneur WAVE de l'extension ; on garde le format d'entrée (PCM flottant).
-        let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).wav")
+        // CAF : conteneur robuste à une interruption/crash — écriture incrémentale en flux, sans en-tête
+        // à finaliser. (Le WAV/RIFF fige la taille dans son en-tête au moment de la fermeture propre ;
+        // un crash en cours laisserait un WAV illisible « 0 octet ».) On enregistre donc en CAF, puis on
+        // convertit en WAV VÉRIFIÉ à l'arrêt (cf. AudioConverter) — format accepté par TOUS les
+        // fournisseurs (OpenAI/Mistral rejettent le .caf) sans jamais risquer de perdre l'audio capturé.
+        let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).caf")
         let input = engine.inputNode
         // Route vers le micro choisi (sinon micro système par défaut).
         if let uid = preferredDeviceUID, !uid.isEmpty,
@@ -76,16 +79,28 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         configObserver = nil
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        let url = currentURL ?? outputDirectory.appending(path: "empty.caf")
+        let cafURL = currentURL ?? outputDirectory.appending(path: "empty.caf")
         let duration = startedAt.map { Date().timeIntervalSince($0) }
-        file = nil   // libère la dernière référence → l'AVAudioFile écrit ses en-têtes/flush sur disque
+        file = nil   // libère la dernière référence → le CAF est flushé sur disque
         currentURL = nil; startedAt = nil
         let durStr = duration.map { String(format: "%.1fs", $0) } ?? "?"
+        let bytes = (try? FileManager.default.attributesOfItem(atPath: cafURL.path))?[.size] as? Int
+        let sizeStr = bytes.map { "\($0 / 1024) Ko" } ?? "?"
         if writeFailed.load(ordering: .relaxed) {
-            AppLog.warn("AudioRecorder", "stop \(url.lastPathComponent) (\(durStr)) — écriture incomplète possible (config/route a changé)")
+            AppLog.warn("AudioRecorder", "stop \(cafURL.lastPathComponent) (\(durStr), \(sizeStr)) — écriture incomplète possible (config/route a changé)")
         } else {
-            AppLog.info("AudioRecorder", "stop \(url.lastPathComponent) (\(durStr))")
+            AppLog.info("AudioRecorder", "stop \(cafURL.lastPathComponent) (\(durStr), \(sizeStr))")
         }
-        return AudioRecording(url: url, duration: duration)
+        // Conversion CAF → WAV hors du thread appelant (lecture + réécriture disque). Le CAF n'est
+        // supprimé QU'APRÈS vérification du WAV produit ; si la conversion échoue, on conserve le CAF
+        // (jamais de perte d'audio — quitte à transcrire le CAF tel quel via le repli ElevenLabs).
+        let wavURL = await Task.detached(priority: .userInitiated) {
+            AudioConverter.convertToWAV(cafURL, deleteSourceOnSuccess: true)
+        }.value
+        if let wavURL {
+            return AudioRecording(url: wavURL, duration: duration)
+        }
+        AppLog.warn("AudioRecorder", "conversion WAV impossible — on conserve le CAF \(cafURL.lastPathComponent)")
+        return AudioRecording(url: cafURL, duration: duration)
     }
 }

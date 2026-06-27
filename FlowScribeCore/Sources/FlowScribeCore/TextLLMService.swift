@@ -18,10 +18,28 @@ public struct TextLLMService: Sendable {
     }
 
     public func complete(system: String, user: String) async throws -> String {
+        let started = Date()
         let request = try buildRequest(system: system, user: user)
-        let (data, response) = try await transport.send(request)
-        guard (200..<300).contains(response.statusCode) else { throw TextLLMError.httpError(response.statusCode) }
-        return try parse(data)
+        // `host` seulement (pas l'URL complète) : la clé Gemini est passée en query → ne JAMAIS la logger.
+        AppLog.info("Reformulation", "envoi \(String(describing: provider)) modèle=\(model) "
+                    + "→ \(request.url?.host ?? "?") (\(user.count) car)")
+        do {
+            let (data, response) = try await transport.send(request)
+            let secs = String(format: "%.1fs", Date().timeIntervalSince(started))
+            guard (200..<300).contains(response.statusCode) else {
+                AppLog.error("Reformulation", "\(String(describing: provider)) HTTP \(response.statusCode) en \(secs)")
+                throw TextLLMError.httpError(response.statusCode)
+            }
+            let text = try parse(data)
+            AppLog.info("Reformulation", "\(String(describing: provider)) OK en \(secs) — \(user.count)→\(text.count) car")
+            return text
+        } catch let e as TextLLMError {
+            throw e   // déjà journalisé
+        } catch {
+            AppLog.error("Reformulation", "\(String(describing: provider)) échec en "
+                         + "\(String(format: "%.1fs", Date().timeIntervalSince(started))) : \(error)")
+            throw error
+        }
     }
 
     private func buildRequest(system: String, user: String) throws -> URLRequest {

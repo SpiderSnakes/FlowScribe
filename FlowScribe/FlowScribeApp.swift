@@ -118,10 +118,18 @@ struct FlowScribeApp: App {
         permissions.refresh()   // l'onboarding pilote les demandes ; pas d'invite groupée au lancement
         NSApp.setActivationPolicy(settings.runInBackground ? .accessory : .regular)
         guard controller == nil else { return }
+        AppLog.info("App", "démarrage — arrière-plan=\(settings.runInBackground) masqué=\(settings.launchHidden) "
+                    + "fournisseur=\(String(describing: settings.defaultProvider)) locale=\(settings.localeIdentifier) "
+                    + "reformulation=\(settings.cleanupEnabled)")
+        AppLog.info("App", "permissions — micro=\(String(describing: permissions.mic)) "
+                    + "voix=\(String(describing: permissions.speech)) accessibilité=\(permissions.accessibility)")
         // Pré-télécharge le modèle de transcription Apple (on-device) dès le lancement : il doit être
         // installé AVANT la 1re dictée, sinon échec « assetDownloadInProgress ».
         let localeId = settings.localeIdentifier
         Task.detached { await AppleSpeechEngine.prepareModel(locale: Locale(identifier: localeId)) }
+        // Récupère les enregistrements qu'un crash aurait laissés orphelins (CAF non converti / WAV non
+        // historisé) : conversion hors-main puis entrée « récupéré » à relancer — jamais de perte d'audio.
+        await history.recoverOrphans(defaultLocale: localeId)
         // Seed : un mode « Par défaut » dérivé des réglages courants à la 1re exécution.
         if modes.modes.isEmpty {
             let m = Mode(name: "Par défaut", provider: settings.defaultProvider,
@@ -172,6 +180,9 @@ struct FlowScribeApp: App {
         history.purge(maxAgeDays: settings.retentionDays)
         settings.onChange = { [weak c, weak settings, profiles, hud, recorder] in
             guard let c, let settings else { return }
+            AppLog.info("App", "réglages modifiés — fournisseur=\(String(describing: settings.defaultProvider)) "
+                        + "locale=\(settings.localeIdentifier) reformulation=\(settings.cleanupEnabled) "
+                        + "micro=\(settings.selectedMicrophoneUID.isEmpty ? "système" : "spécifique")")
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)

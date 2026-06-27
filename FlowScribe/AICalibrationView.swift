@@ -58,7 +58,10 @@ struct AICalibrationView: View {
                         ForEach(proposals) { p in
                             Toggle(isOn: binding(p)) {
                                 HStack {
-                                    Text("« \(p.heard) » → ").foregroundStyle(.secondary) + Text(p.corrected).bold()
+                                    HStack(spacing: 0) {   // deux styles distincts (gris + gras) gardés côte à côte
+                                        Text("« \(p.heard) » → ").foregroundStyle(.secondary)
+                                        Text(p.corrected).bold()
+                                    }
                                     Spacer()
                                     Text("\(p.occurrences)×").font(.caption).foregroundStyle(.secondary)
                                 }

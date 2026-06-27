@@ -29,10 +29,14 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
     private var effectiveModel: String { modelId ?? config.modelValue }
 
     public func transcribeFile(at url: URL, locale: Locale) async throws -> String {
+        let started = Date()
         let audio = try Data(contentsOf: url)
+        // Type MIME déduit de l'extension réelle : un repli en .caf (si la conversion WAV a échoué) ne doit
+        // pas être annoncé comme « audio/wav » — sinon le serveur rejette un en-tête incohérent.
+        let contentType = Self.contentType(forExtension: url.pathExtension.lowercased())
         var form = MultipartFormData(boundary: boundary)
         form.addField(name: config.modelField, value: effectiveModel)
-        form.addFile(name: "file", filename: url.lastPathComponent, contentType: "audio/wav", data: audio)
+        form.addFile(name: "file", filename: url.lastPathComponent, contentType: contentType, data: audio)
 
         var request = URLRequest(url: config.endpoint)
         request.httpMethod = "POST"
@@ -40,15 +44,50 @@ public final class CloudTranscriptionEngine: TranscriptionEngine {
         request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = form.encoded()
 
-        let (data, response) = try await transport.send(request)
-        guard (200..<300).contains(response.statusCode) else {
-            throw CloudTranscriptionError.httpError(status: response.statusCode, body: String(decoding: data, as: UTF8.self))
+        // Journalisation diagnostique — JAMAIS la clé ni le texte (uniquement métadonnées et tailles).
+        AppLog.info("Cloud", "envoi \(config.id) modèle=\(effectiveModel) → \(config.endpoint.host ?? "?") "
+                    + "(\(audio.count / 1024) Ko, \(contentType))")
+        do {
+            let (data, response) = try await transport.send(request)
+            let secs = Self.s(Date().timeIntervalSince(started))
+            guard (200..<300).contains(response.statusCode) else {
+                let body = String(decoding: data, as: UTF8.self)
+                AppLog.error("Cloud", "\(config.id) HTTP \(response.statusCode) en \(secs) — \(Self.snippet(body))")
+                throw CloudTranscriptionError.httpError(status: response.statusCode, body: body)
+            }
+            guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let text = obj["text"] as? String else {
+                AppLog.error("Cloud", "\(config.id) réponse inattendue en \(secs) (\(data.count) o)")
+                throw CloudTranscriptionError.badResponse
+            }
+            AppLog.info("Cloud", "\(config.id) OK HTTP \(response.statusCode) en \(secs) — \(text.count) car")
+            return text
+        } catch let e as CloudTranscriptionError {
+            throw e   // déjà journalisé ci-dessus
+        } catch {
+            AppLog.error("Cloud", "\(config.id) échec réseau en \(Self.s(Date().timeIntervalSince(started))) : \(error)")
+            throw error
         }
-        guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let text = obj["text"] as? String else {
-            throw CloudTranscriptionError.badResponse
+    }
+
+    /// Type MIME audio à partir de l'extension de fichier (pour l'upload multipart).
+    private static func contentType(forExtension ext: String) -> String {
+        switch ext {
+        case "wav":          return "audio/wav"
+        case "caf":          return "audio/x-caf"
+        case "m4a", "mp4":   return "audio/mp4"
+        case "mp3":          return "audio/mpeg"
+        case "flac":         return "audio/flac"
+        case "ogg":          return "audio/ogg"
+        default:             return "application/octet-stream"
         }
-        return text
+    }
+
+    private static func s(_ t: TimeInterval) -> String { String(format: "%.1fs", t) }
+    /// Tronque un corps de réponse d'erreur pour le log (message d'erreur du fournisseur, jamais de secret).
+    private static func snippet(_ s: String) -> String {
+        let oneLine = s.replacingOccurrences(of: "\n", with: " ")
+        return oneLine.count > 300 ? String(oneLine.prefix(300)) + "…" : oneLine
     }
 
     /// Teste la clé sur l'endpoint de transcription lui-même (scope-correct : une clé

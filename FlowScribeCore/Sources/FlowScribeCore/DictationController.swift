@@ -41,6 +41,7 @@ public final class DictationController {
     }
 
     private func setState(_ newState: DictationState) {
+        if newState != state { AppLog.info("Dictation", "état \(state) → \(newState)") }
         state = newState
         onStateChange?(newState)
     }
@@ -75,6 +76,7 @@ public final class DictationController {
     /// `start()` immédiat pourrait croiser le `stop()` différé (tap retiré → dictée vide).
     public func cancel() async {
         guard state != .idle else { return }
+        AppLog.info("Dictation", "annulation (Échap) depuis l'état \(state)")
         transcriptionTask?.cancel()
         transcriptionTask = nil
         if state == .recording {
@@ -102,10 +104,15 @@ public final class DictationController {
         switch outcome {
         case let .success(text, engineId, _):
             var finalText = text
-            if let cleanup { finalText = await cleanup(finalText) }
+            if let cleanup {
+                let before = finalText.count
+                finalText = await cleanup(finalText)
+                AppLog.info("Dictation", "reformulation \(before)→\(finalText.count) car")
+            }
             if Task.isCancelled { return }
             lastTranscript = finalText
             output.deliver(finalText)
+            AppLog.info("Dictation", "collage \(finalText.count) car (moteur \(engineId))")
             onRecord?(TranscriptionRecord(
                 id: UUID(), date: Date(), text: finalText, engineId: engineId,
                 locale: locale.identifier, audioFileName: recording.url.lastPathComponent,

@@ -62,10 +62,11 @@ public enum AppLog {
         rotateLocked(url)
     }
 
-    /// Rotation simple (sous `lock`) : au-delà de ~2 Mo, on ne garde que la seconde moitié (entrées récentes).
+    /// Rotation simple (sous `lock`) : au-delà de ~5 Mo, on ne garde que la seconde moitié (entrées récentes).
+    /// Plafond volontairement large : on veut le MAXIMUM d'historique pour diagnostiquer un bug a posteriori.
     private static func rotateLocked(_ url: URL) {
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let size = attrs[.size] as? Int, size > 2_000_000,
+              let size = attrs[.size] as? Int, size > 5_000_000,
               let content = try? String(contentsOf: url, encoding: .utf8) else { return }
         let trimmed = String(content.suffix(content.count / 2))
         try? trimmed.data(using: .utf8)?.write(to: url)

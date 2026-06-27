@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import FlowScribeCore
 
 /// Référence faible vers la fenêtre principale, partagée entre la couche AppKit (AppDelegate) et SwiftUI.
 @MainActor
@@ -19,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Relance alors que l'app tourne déjà (Spotlight, clic Dock) → on remet la fenêtre au premier plan.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        AppLog.info("App", "réouverture (Spotlight/Dock) — fenêtre visible=\(flag)")
         if !flag {
             MainActor.assumeIsolated {
                 MainWindowRef.shared.window?.makeKeyAndOrderFront(nil)
@@ -26,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
         }
         return true   // si la fenêtre avait été détruite, laisse SwiftUI en recréer une
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        AppLog.info("App", "lancement terminé (NSApplication prête)")
     }
 }
 
@@ -58,6 +64,7 @@ struct WindowAccessor: NSViewRepresentable {
             // de session ne doit pas masquer la fenêtre ouverte → on verrouille après la première capture.
             guard !launchHandled else { return }
             launchHandled = true
+            AppLog.info("App", "fenêtre principale capturée (masquée au lancement=\(hideOnLaunch))")
             if hideOnLaunch { window.orderOut(nil) }
         }
     }

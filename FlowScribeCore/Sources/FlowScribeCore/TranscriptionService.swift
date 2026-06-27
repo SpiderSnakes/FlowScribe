@@ -20,6 +20,8 @@ public final class TranscriptionService: Sendable {
 
     public func transcribe(fileAt url: URL, locale: Locale, audioDuration: TimeInterval? = nil) async -> TranscriptionOutcome {
         let timeout = effectiveTimeout(for: audioDuration)
+        AppLog.info("Transcription", "début \(url.lastPathComponent) — primaire=\(primary.id) repli=\(fallback.id) "
+                    + "locale=\(locale.identifier) timeout=\(Int(timeout))s")
         if let text = await tryEngine(primary, url: url, locale: locale, timeout: timeout) {
             return .success(text: corrected(text, primary.id), engineId: primary.id, usedFallback: false)
         }

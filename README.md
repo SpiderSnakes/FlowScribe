@@ -28,6 +28,10 @@ tu n'as pas configuré de clé.
 - **Historique** : relire, réécouter l'audio, **re-transcrire** avec un modèle précis, copier, créer
   une règle, **révéler le fichier dans le Finder**, rétention configurable. Les transcriptions qui
   échouent sont **conservées** (audio gardé) pour être relancées.
+- **Enregistrement à toute épreuve** : l'audio est capturé dans un conteneur CAF (robuste à un crash),
+  puis converti en WAV **uniquement après vérification** — l'original n'est supprimé que si le WAV est
+  valide. Au lancement, tout enregistrement laissé orphelin par une fermeture inattendue est **récupéré**
+  dans l'historique pour relance. Aucune perte d'audio.
 - **Mode arrière-plan « invisible »** (façon SuperWhisper) : sans icône Dock ni barre des menus,
   démarrage masqué, l'app reste lancée fenêtre fermée ; on rouvre les réglages en relançant via
   Spotlight. La dictée reste pilotée par le raccourci.
@@ -42,12 +46,13 @@ tu n'as pas configuré de clé.
   jamais journalisées).
 - Le **modèle Apple** transcrit **sur l'appareil**, hors ligne. Les fournisseurs cloud ne sont
   appelés que si tu as saisi une clé pour eux.
-- Le **fichier de journaux** ne contient que des métadonnées (moteur, durée, erreurs) — ni clé, ni
-  texte de transcription.
+- Le **fichier de journaux** est volontairement détaillé pour faciliter le diagnostic, mais ne contient
+  que des **métadonnées** (moteur, modèle, durée, tailles de fichier, statut HTTP, nom d'hôte, erreurs)
+  — **jamais de clé API ni de texte de transcription**.
 
 ## Installation (DMG)
 
-1. Télécharge `FlowScribe-1.0.dmg` depuis la page [Releases](../../releases).
+1. Télécharge `FlowScribe-0.1.dmg` depuis la page [Releases](../../releases).
 2. Ouvre le DMG, glisse **FlowScribe** dans **Applications**, lance-le.
    L'app est **signée Developer ID et notarisée par Apple** → elle s'ouvre directement, **sans
    avertissement Gatekeeper**.
