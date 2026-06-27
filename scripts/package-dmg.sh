@@ -43,12 +43,16 @@ xcodebuild -project FlowScribe.xcodeproj -scheme FlowScribe -configuration Relea
 # codesign produit alors une signature SANS horodatage sécurisé tout en sortant 0 → notarisation refusée.
 # On réessaie jusqu'à ce que l'horodatage soit RÉELLEMENT présent dans la signature.
 echo "==> Re-signature de distribution de l'app (horodatage sécurisé)"
+# NB : on CAPTURE la sortie de codesign dans une variable avant de la tester. Un `codesign … | grep -q`
+# sous `set -o pipefail` est piégeux : grep -q ferme le tube dès qu'il trouve → codesign meurt en SIGPIPE
+# → pipefail signale un échec MÊME quand l'horodatage est présent (faux négatif aléatoire selon le buffer).
 resign_ok=0
 for attempt in $(seq 1 8); do
   codesign --force --options runtime --timestamp \
     --entitlements "$ROOT/FlowScribe/FlowScribe.entitlements" \
     --sign "$IDENTITY" "$APP" 2>&1 || true
-  if codesign -dvvv "$APP" 2>&1 | grep -q "Timestamp="; then resign_ok=1; break; fi
+  sig_info="$(codesign -dvvv "$APP" 2>&1 || true)"
+  case "$sig_info" in *"Timestamp="*) resign_ok=1; break ;; esac
   wait_s=$(( attempt * 4 )); [ "$wait_s" -gt 20 ] && wait_s=20   # backoff doux (évite le rate-limit TSA)
   echo "  ⚠️  horodatage absent (tentative $attempt/8) — réessai dans ${wait_s}s (TSA Apple indisponible)…"
   sleep "$wait_s"
@@ -57,9 +61,10 @@ done
 
 echo "==> Vérification de la signature de l'app"
 codesign --verify --deep --strict --verbose=2 "$APP"
-if codesign -d --entitlements - "$APP" 2>/dev/null | tr -d '\0' | grep -q "get-task-allow"; then
-  echo "ERREUR : l'entitlement de débogage get-task-allow est toujours présent"; exit 1
-fi
+ent_info="$(codesign -d --entitlements - "$APP" 2>/dev/null | tr -d '\0' || true)"
+case "$ent_info" in
+  *get-task-allow*) echo "ERREUR : l'entitlement de débogage get-task-allow est toujours présent"; exit 1 ;;
+esac
 
 echo "==> Assemblage du DMG d'installation : $(basename "$DMG")"
 VOLNAME="FlowScribe"
