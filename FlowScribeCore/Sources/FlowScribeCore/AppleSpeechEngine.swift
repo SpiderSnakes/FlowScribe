@@ -1,6 +1,7 @@
 import Foundation
 import Speech
 import AVFoundation
+import Synchronization
 
 public enum AppleSpeechError: Error {
     case unavailable
@@ -11,6 +12,13 @@ public enum AppleSpeechError: Error {
 public final class AppleSpeechEngine: TranscriptionEngine {
     public let id = "apple.local"
     public let capabilities = EngineCapabilities(supportsStreaming: true, supportsKeyterms: false, isLocal: true)
+
+    /// État de disponibilité du modèle on-device, mis à jour par `prepareModel`. OPTIMISTE par défaut
+    /// (`true`) : tant qu'on n'a pas constaté l'inverse, on n'empêche JAMAIS d'enregistrer. Sert au
+    /// garde-fou pré-enregistrement (ne pas lancer une dictée Apple vouée à échouer).
+    private static let readyFlag = Atomic<Bool>(true)
+    /// `true` si le dernier `prepareModel` a confirmé le modèle prêt (ou si on n'a pas encore vérifié).
+    public static var isModelReady: Bool { readyFlag.load(ordering: .relaxed) }
 
     public init() {}
 
@@ -45,12 +53,17 @@ public final class AppleSpeechEngine: TranscriptionEngine {
 
     /// Pré-télécharge le modèle de la locale au lancement (best-effort, en tâche de fond) pour qu'il
     /// soit prêt quand l'utilisateur dicte — le téléchargement on-device peut prendre du temps.
-    public static func prepareModel(locale: Locale) async {
+    @discardableResult
+    public static func prepareModel(locale: Locale) async -> Bool {
         do {
             _ = try await makeReadyTranscriber(locale: locale)
+            readyFlag.store(true, ordering: .relaxed)
             AppLog.info("AppleSpeech", "modèle prêt (\(locale.identifier))")
+            return true
         } catch {
+            readyFlag.store(false, ordering: .relaxed)
             AppLog.warn("AppleSpeech", "préchargement du modèle (\(locale.identifier)) : \(error)")
+            return false
         }
     }
 
@@ -61,20 +74,46 @@ public final class AppleSpeechEngine: TranscriptionEngine {
             throw AppleSpeechError.localeUnsupported
         }
         let transcriber = SpeechTranscriber(locale: supported, preset: .transcription)
-        let status = await AssetInventory.status(forModules: [transcriber])
-        if status == .installed { return transcriber }
 
-        AppLog.info("AppleSpeech", "modèle \(supported.identifier) non installé (statut \(String(describing: status))) — installation…")
+        // SOURCE DE VÉRITÉ : `installedLocales`. ⚠️ `AssetInventory.status(forModules:)` renvoie
+        // « .supported » même quand la locale EST installée et fonctionnelle (faux négatif confirmé sur
+        // l'appareil : status=.supported alors que la transcription marche). Ne JAMAIS gater la
+        // disponibilité sur `status` — sinon on rejette un modèle pourtant prêt (bug « assetDownloadInProgress »).
+        if await isInstalled(supported) {
+            await reserveIfNeeded(supported)
+            return transcriber
+        }
+
+        AppLog.info("AppleSpeech", "modèle \(supported.identifier) non installé — téléchargement…")
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
             try await request.downloadAndInstall()
         } else {
-            AppLog.warn("AppleSpeech", "aucune requête d'installation disponible pour \(supported.identifier) (déjà en cours ?)")
+            AppLog.warn("AppleSpeech", "aucune requête d'installation pour \(supported.identifier) (rien à télécharger ou indisponible)")
         }
-        let after = await AssetInventory.status(forModules: [transcriber])
-        guard after == .installed else {
-            AppLog.error("AppleSpeech", "modèle \(supported.identifier) toujours non installé après tentative (statut \(String(describing: after)))")
+        guard await isInstalled(supported) else {
+            AppLog.error("AppleSpeech", "modèle \(supported.identifier) toujours indisponible après tentative de téléchargement")
             throw AppleSpeechError.assetDownloadInProgress
         }
+        await reserveIfNeeded(supported)
         return transcriber
+    }
+
+    /// `true` si la locale figure dans les modèles RÉELLEMENT installés (comparaison BCP-47).
+    private static func isInstalled(_ locale: Locale) async -> Bool {
+        let target = locale.identifier(.bcp47)
+        return await SpeechTranscriber.installedLocales.contains { $0.identifier(.bcp47) == target }
+    }
+
+    /// Réserve la locale (best-effort) pour empêcher macOS de purger le modèle entre les sessions —
+    /// ce qui expliquait l'oscillation « marche puis ne marche plus » d'une session à l'autre.
+    private static func reserveIfNeeded(_ locale: Locale) async {
+        let target = locale.identifier(.bcp47)
+        if await AssetInventory.reservedLocales.contains(where: { $0.identifier(.bcp47) == target }) { return }
+        do {
+            try await AssetInventory.reserve(locale: locale)
+            AppLog.info("AppleSpeech", "locale \(target) réservée (anti-éviction)")
+        } catch {
+            AppLog.warn("AppleSpeech", "réservation de \(target) impossible : \(error)")
+        }
     }
 }

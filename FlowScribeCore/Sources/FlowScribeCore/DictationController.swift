@@ -19,6 +19,13 @@ public final class DictationController {
     public var onStateChange: ((DictationState) -> Void)?
     /// Notifié quand une dictée est annulée (Échap) — l'UI masque le HUD sans toast de résultat.
     public var onCancel: (() -> Void)?
+    /// Garde-fou pré-enregistrement : renvoie `false` si le moteur sélectionné NE PEUT PAS transcrire
+    /// (ex. modèle Apple pas encore prêt). Dans ce cas on N'ENREGISTRE PAS — inutile de faire parler
+    /// l'utilisateur pour échouer ensuite. OPTIMISTE : nil ou `true` => on enregistre normalement.
+    public var canStart: (@MainActor () -> Bool)?
+    /// Notifié quand `canStart` a bloqué le démarrage — l'UI affiche un message clair (et peut relancer
+    /// la préparation du modèle).
+    public var onStartBlocked: (@MainActor () -> Void)?
 
     private let recorder: AudioRecorder
     private var service: TranscriptionService
@@ -48,6 +55,13 @@ public final class DictationController {
 
     public func pressDown() {
         if state == .idle {
+            // Garde-fou : si le moteur ne peut pas transcrire (modèle Apple pas prêt), on ne lance pas
+            // l'enregistrement → pas de dictée perdue, message immédiat à la place.
+            if let canStart, !canStart() {
+                AppLog.warn("Dictation", "démarrage bloqué : moteur de transcription pas prêt")
+                onStartBlocked?()
+                return
+            }
             do {
                 try recorder.start()
                 setState(.recording)

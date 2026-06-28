@@ -52,7 +52,7 @@ tu n'as pas configuré de clé.
 
 ## Installation (DMG)
 
-1. Télécharge `FlowScribe-0.1.dmg` depuis la page [Releases](../../releases).
+1. Télécharge `FlowScribe-0.2.dmg` depuis la page [Releases](../../releases).
 2. Ouvre le DMG, glisse **FlowScribe** dans **Applications**, lance-le.
    L'app est **signée Developer ID et notarisée par Apple** → elle s'ouvre directement, **sans
    avertissement Gatekeeper**.

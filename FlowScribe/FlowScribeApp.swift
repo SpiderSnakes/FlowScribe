@@ -175,6 +175,18 @@ struct FlowScribeApp: App {
             hud.hide()
             if settings.soundEffectsEnabled { SoundEffects.playStop() }
         }
+        // Garde-fou : ne lance pas une dictée Apple si le modèle on-device n'est pas prêt (sinon
+        // l'utilisateur parle pour rien). OPTIMISTE : n'empêche QUE le cas Apple-non-prêt avéré.
+        c.canStart = { [weak settings] in
+            guard let settings else { return true }
+            return settings.defaultProvider != .appleLocal || AppleSpeechEngine.isModelReady
+        }
+        c.onStartBlocked = { [hud, weak settings] in
+            hud.showResult("Modèle de transcription Apple en cours de préparation — réessaie dans un instant", isError: true)
+            guard let settings else { return }
+            let loc = settings.localeIdentifier            // relance la préparation/téléchargement du modèle
+            Task.detached { await AppleSpeechEngine.prepareModel(locale: Locale(identifier: loc)) }
+        }
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
@@ -189,6 +201,12 @@ struct FlowScribeApp: App {
             hud.style = settings.recordingWindowStyle
             hud.ambiance = Ambiance(palette: BrandPalette(settings.ambiancePalette), intensity: settings.ambianceIntensity)
             recorder.preferredDeviceUID = settings.selectedMicrophoneUID
+            // La locale a pu changer → re-prépare/réserve le modèle Apple (rafraîchit aussi l'état de
+            // disponibilité utilisé par le garde-fou).
+            if settings.defaultProvider == .appleLocal {
+                let loc = settings.localeIdentifier
+                Task.detached { await AppleSpeechEngine.prepareModel(locale: Locale(identifier: loc)) }
+            }
         }
     }
 
