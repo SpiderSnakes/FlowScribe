@@ -31,7 +31,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.terminatePreviousInstances()
         AppLog.info("App", "lancement terminé (NSApplication prête)")
+    }
+
+    /// Garantit une SEULE instance de FlowScribe. Indispensable pour une app en arrière-plan invisible :
+    /// après une mise à jour, l'ANCIENNE version reste lancée (aucune icône Dock/menu pour la quitter) et
+    /// entre en conflit avec la nouvelle — même raccourci global, même dossier d'enregistrements, même
+    /// journal → deux moteurs qui se marchent dessus (« erreur de transcription » en boucle, relances
+    /// fantômes). Le nouveau process (celui-ci) gagne : il arrête les instances précédentes du même bundle.
+    private static func terminatePreviousInstances() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let myPID = NSRunningApplication.current.processIdentifier
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .filter { $0.processIdentifier != myPID }
+        for app in others {
+            AppLog.warn("App", "instance FlowScribe déjà active (pid \(app.processIdentifier)) — arrêt de l'ancienne")
+            if !app.terminate() { app.forceTerminate() }   // forceTerminate si le quit propre est refusé
+        }
     }
 }
 

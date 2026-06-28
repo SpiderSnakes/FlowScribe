@@ -23,6 +23,33 @@ struct RootView: View {
             : (micDevices.first { $0.id == settings.selectedMicrophoneUID }?.name ?? "Micro")
     }
 
+    /// Sélecteur de micro flottant (coin haut-droit du contenu), posé sur le grainient sans barre opaque.
+    private var micSelectorBar: some View {
+        HStack {
+            Spacer()
+            Menu {
+                Button { settings.selectedMicrophoneUID = "" } label: {
+                    Label("Système (par défaut)", systemImage: settings.selectedMicrophoneUID.isEmpty ? "checkmark" : "mic")
+                }
+                ForEach(micDevices) { d in
+                    Button { settings.selectedMicrophoneUID = d.id } label: {
+                        Label(d.name, systemImage: settings.selectedMicrophoneUID == d.id ? "checkmark" : "mic")
+                    }
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "mic.fill").font(.system(size: 10))
+                    Text(micName).font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+
     var body: some View {
         NavigationSplitView {
             SidebarView(section: $section)
@@ -40,30 +67,9 @@ struct RootView: View {
                 detailContent
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Menu {
-                        Button { settings.selectedMicrophoneUID = "" } label: {
-                            Label("Système (par défaut)", systemImage: settings.selectedMicrophoneUID.isEmpty ? "checkmark" : "mic")
-                        }
-                        ForEach(micDevices) { d in
-                            Button { settings.selectedMicrophoneUID = d.id } label: {
-                                Label(d.name, systemImage: settings.selectedMicrophoneUID == d.id ? "checkmark" : "mic")
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "mic.fill").font(.system(size: 10))
-                            Text(micName).font(.system(size: 11, weight: .medium))
-                        }
-                        .foregroundStyle(.secondary)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                }
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                // pas de barre opaque : le sélecteur de micro flotte directement sur le grainient (intégré)
+                // Masqué dans les Réglages : le formulaire y a déjà son propre sélecteur de micro, et ce
+                // sélecteur flottant (sans barre opaque) viendrait se superposer aux premières options.
+                if section != .reglages { micSelectorBar }
             }
             .task {
                 // énumération CoreAudio hors du thread principal (AudioInputDevice est Sendable)

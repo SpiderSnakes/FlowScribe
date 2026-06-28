@@ -97,6 +97,16 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section {
+                HStack {
+                    Spacer()
+                    Text("FlowScribe \(Self.appVersion)")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -110,6 +120,15 @@ struct SettingsView: View {
         .task {
             micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value
         }
+    }
+
+    /// Version affichée, lue dans l'Info.plist — MÊMES clés que le panneau « À propos » de macOS,
+    /// donc toujours synchronisée avec lui (ex. « 0.3.0 (4) »).
+    private static var appVersion: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(short) (\(build))"
     }
 
     private func permissionRow(_ label: String, ok: Bool) -> some View {

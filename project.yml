@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "3"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "4"
     CODE_SIGN_STYLE: Manual
     CODE_SIGN_IDENTITY: "Developer ID Application"
     DEVELOPMENT_TEAM: "Y8XLVL2758"
@@ -45,6 +45,10 @@ targets:
       path: FlowScribe/Info.plist
       properties:
         CFBundleDisplayName: FlowScribe
+        # Versions affichées (menu « À propos », Réglages) — câblées sur les réglages de build pour rester
+        # synchronisées. Sans ça, XcodeGen fige des valeurs par défaut « 1.0 (1) » dans l'Info.plist.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
           - en
