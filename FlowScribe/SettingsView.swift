@@ -20,9 +20,10 @@ struct SettingsView: View {
                 Picker("Fenêtre d'enregistrement", selection: $settings.recordingWindowStyle) {
                     ForEach(RecordingWindowStyle.allCases) { Text($0.title).tag($0) }
                 }
+                Toggle("Mettre la musique en pause pendant la dictée", isOn: $settings.musicControlEnabled)
                 Toggle("Couper le son du Mac pendant la dictée", isOn: $settings.muteSystemAudioEnabled)
             } header: { Text("Enregistrement") } footer: {
-                Text("Coupe la sortie audio (haut-parleurs/casque) le temps de l'enregistrement, puis rétablit exactement l'état précédent — utile si un jeu ou une vidéo tourne en arrière-plan.")
+                Text("Deux options complémentaires. « Mettre la musique en pause » suspend Music/Spotify puis reprend le MÊME morceau là où il s'était arrêté. « Couper le son du Mac » coupe toute la sortie audio (jeu, vidéo, autre app) puis rétablit l'état exact. Tu peux activer l'une, l'autre, ou les deux.")
             }
 
             Section {

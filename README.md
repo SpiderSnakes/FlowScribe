@@ -20,8 +20,9 @@ tu n'as pas configuré de clé.
   waveform organique en temps réel.
 - **Modes** : des profils par tâche (fournisseur de transcription, modèle, langue, pause musique,
   reformulation écrite optionnelle).
-- **Silence pendant la dictée** (option) : coupe la sortie audio du Mac le temps de l'enregistrement
-  (utile si un jeu ou une vidéo tourne en fond), puis rétablit exactement l'état précédent.
+- **Pause & silence pendant la dictée** (deux options) : mettre **Music/Spotify en pause** (reprend le
+  même morceau à la fin) et/ou **couper le son du Mac** (utile si un jeu/une vidéo tourne en fond),
+  puis rétablir exactement l'état précédent.
 - **Oral / Écrit séparés** : choisis un fournisseur pour la transcription (oral) et un autre pour la
   reformulation/calibration (écrit).
 - **Corrections** : règles globales « entendu → corrigé » + glossaire de tes termes techniques.
@@ -54,7 +55,7 @@ tu n'as pas configuré de clé.
 
 ## Installation (DMG)
 
-1. Télécharge `FlowScribe-0.4.dmg` depuis la page [Releases](../../releases).
+1. Télécharge `FlowScribe-0.5.dmg` depuis la page [Releases](../../releases).
 2. Ouvre le DMG, glisse **FlowScribe** dans **Applications**, lance-le.
    L'app est **signée Developer ID et notarisée par Apple** → elle s'ouvre directement, **sans
    avertissement Gatekeeper**.
