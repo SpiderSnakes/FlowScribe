@@ -224,6 +224,7 @@ struct FlowScribeApp: App {
     @MainActor
     private static func applyOptions(to c: DictationController, settings: SettingsStore) {
         c.mediaController = MediaController(player: AppleScriptMediaPlayer(), enabled: settings.musicControlEnabled)
+        c.audioMuter = SystemAudioMuter(enabled: settings.muteSystemAudioEnabled)
         c.cleanup = makeCleanup(settings)
     }
 

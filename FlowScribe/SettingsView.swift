@@ -20,7 +20,10 @@ struct SettingsView: View {
                 Picker("Fenêtre d'enregistrement", selection: $settings.recordingWindowStyle) {
                     ForEach(RecordingWindowStyle.allCases) { Text($0.title).tag($0) }
                 }
-            } header: { Text("Enregistrement") }
+                Toggle("Couper le son du Mac pendant la dictée", isOn: $settings.muteSystemAudioEnabled)
+            } header: { Text("Enregistrement") } footer: {
+                Text("Coupe la sortie audio (haut-parleurs/casque) le temps de l'enregistrement, puis rétablit exactement l'état précédent — utile si un jeu ou une vidéo tourne en arrière-plan.")
+            }
 
             Section {
                 Picker("Palette", selection: $settings.ambiancePalette) {

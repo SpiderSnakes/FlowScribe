@@ -44,6 +44,11 @@ final class SettingsStore {
     var musicControlEnabled: Bool {
         didSet { defaults.set(musicControlEnabled, forKey: "musicControlEnabled"); notifyChange() }
     }
+    /// Coupe la sortie audio système (haut-parleurs/casque) pendant la dictée, puis restaure l'état
+    /// précédent — pour qu'aucun son tiers (jeu, vidéo…) ne sorte pendant l'enregistrement.
+    var muteSystemAudioEnabled: Bool {
+        didSet { defaults.set(muteSystemAudioEnabled, forKey: "muteSystemAudioEnabled"); notifyChange() }
+    }
     var cleanupEnabled: Bool {
         didSet { defaults.set(cleanupEnabled, forKey: "cleanupEnabled"); notifyChange() }
     }
@@ -115,6 +120,7 @@ final class SettingsStore {
         self.defaultProvider = EngineProvider(rawValue: raw) ?? .appleLocal
         self.localeIdentifier = defaults.string(forKey: "localeIdentifier") ?? "fr-FR"
         self.musicControlEnabled = defaults.bool(forKey: "musicControlEnabled")
+        self.muteSystemAudioEnabled = defaults.bool(forKey: "muteSystemAudioEnabled")
         self.cleanupEnabled = defaults.bool(forKey: "cleanupEnabled")
         self.cleanupPrompt = defaults.string(forKey: "cleanupPrompt") ?? Self.defaultCleanupPrompt
         self.cleanupProvider = EngineProvider(rawValue: defaults.string(forKey: "cleanupProvider") ?? "") ?? .openAI

@@ -11,6 +11,8 @@ public final class DictationController {
     public var onFinish: ((TranscriptionOutcome) -> Void)?
     /// Contrôle musique optionnel (pause au début, reprise à la fin).
     public var mediaController: MediaController?
+    /// Coupe-son système optionnel : coupe la sortie au début de la dictée, restaure à la fin.
+    public var audioMuter: SystemAudioMuter?
     /// Nettoyage IA optionnel appliqué avant le collage.
     public var cleanup: ((String) async -> String)?
     /// Notifié en fin de dictée réussie avec le record à historiser.
@@ -67,6 +69,7 @@ public final class DictationController {
                 setState(.recording)
                 pressStartedRecording = true
                 mediaController?.pauseForDictation()
+                audioMuter?.muteForDictation()
             } catch {
                 AppLog.error("Dictation", "démarrage de l'enregistrement impossible : \(error)")
                 setState(.idle)
@@ -99,6 +102,7 @@ public final class DictationController {
         lastTranscript = nil
         setState(.idle)
         mediaController?.resumeAfterDictation()
+        audioMuter?.restoreAfterDictation()
         onCancel?()
     }
 
@@ -143,6 +147,7 @@ public final class DictationController {
         transcriptionTask = nil
         setState(.idle)
         mediaController?.resumeAfterDictation()
+        audioMuter?.restoreAfterDictation()
         onFinish?(outcome)
     }
 }
