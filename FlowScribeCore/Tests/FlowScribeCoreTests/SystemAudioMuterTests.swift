@@ -5,10 +5,12 @@ import XCTest
 private final class FakeOutput: SystemOutputControlling, @unchecked Sendable {
     var mute: Bool?
     var volume: Float?
+    var sharedWithInput = false   // casque/AirPods
     func currentMute() -> Bool? { mute }
     func setMute(_ m: Bool) { mute = m }
     func currentVolume() -> Float? { volume }
     func setVolume(_ v: Float) { volume = v }
+    func outputAlsoCapturesInput() -> Bool { sharedWithInput }
 }
 
 @MainActor
@@ -38,6 +40,15 @@ final class SystemAudioMuterTests: XCTestCase {
         XCTAssertEqual(out.volume, 0, "doit mettre le volume à 0")
         m.restoreAfterDictation()
         XCTAssertEqual(out.volume, 0.6, "doit restaurer le volume exact")
+    }
+
+    func test_skipsMute_whenOutputIsAlsoInput_airpods() {
+        let out = FakeOutput(); out.mute = false; out.sharedWithInput = true   // AirPods : I/O combiné
+        let m = SystemAudioMuter(output: out, enabled: true)
+        m.muteForDictation()
+        XCTAssertEqual(out.mute, false, "ne doit PAS couper un périphérique combiné (corromprait le micro)")
+        m.restoreAfterDictation()
+        XCTAssertEqual(out.mute, false)
     }
 
     func test_disabled_doesNothing() {

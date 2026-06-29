@@ -9,6 +9,11 @@ public protocol SystemOutputControlling: Sendable {
     /// Volume courant (0…1), ou `nil` si non réglable. Repli quand le mute n'est pas disponible.
     func currentVolume() -> Float?
     func setVolume(_ volume: Float)
+    /// `true` si la sortie par défaut sert AUSSI d'entrée (casque/AirPods = un seul périphérique CoreAudio
+    /// combiné). Couper sa sortie pendant qu'on capte son micro corrompt le flux partagé (HFP Bluetooth)
+    /// → audio inexploitable. Dans ce cas on NE coupe PAS. (Les HP intégrés sont un périphérique distinct
+    /// du micro intégré → couper reste sûr.)
+    func outputAlsoCapturesInput() -> Bool
 }
 
 /// Coupe la sortie audio système (haut-parleurs/casque par défaut) pendant la dictée et restaure
@@ -31,6 +36,12 @@ public final class SystemAudioMuter {
     /// Idempotent : un 2ᵉ appel sans restauration ne réécrase pas l'état mémorisé.
     public func muteForDictation() {
         guard enabled, saved == nil else { return }
+        // Ne JAMAIS couper la sortie du périphérique qui sert aussi de micro (AirPods/casque) : cela
+        // corromprait la capture (flux HFP partagé) → enregistrement inexploitable.
+        if output.outputAlsoCapturesInput() {
+            AppLog.info("Audio", "sortie = périphérique d'entrée (casque/AirPods) — coupure ignorée (préserve le micro)")
+            return
+        }
         if let wasMuted = output.currentMute() {
             saved = .mute(wasMuted)
             if !wasMuted { output.setMute(true) }
@@ -96,7 +107,28 @@ public struct CoreAudioOutput: SystemOutputControlling {
         _ = AudioObjectSetPropertyData(dev, &addr, 0, nil, UInt32(MemoryLayout<Float32>.size), &value)
     }
 
+    public func outputAlsoCapturesInput() -> Bool {
+        guard let dev = Self.defaultOutputDevice() else { return false }
+        return Self.hasInputStreams(dev)
+    }
+
     // MARK: - Helpers CoreAudio
+
+    /// `true` si le périphérique possède au moins un canal d'ENTRÉE (donc combiné I/O : casque/AirPods).
+    private static func hasInputStreams(_ dev: AudioDeviceID) -> Bool {
+        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreamConfiguration,
+                                              mScope: kAudioObjectPropertyScopeInput,
+                                              mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(dev, &addr, 0, nil, &size) == noErr, size > 0 else { return false }
+        let data = UnsafeMutableRawPointer.allocate(byteCount: Int(size),
+                                                    alignment: MemoryLayout<AudioBufferList>.alignment)
+        defer { data.deallocate() }
+        guard AudioObjectGetPropertyData(dev, &addr, 0, nil, &size, data) == noErr else { return false }
+        let abl = UnsafeMutableAudioBufferListPointer(data.assumingMemoryBound(to: AudioBufferList.self))
+        for buffer in abl where buffer.mNumberChannels > 0 { return true }
+        return false
+    }
 
     private static func address(_ selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(mSelector: selector,
