@@ -15,7 +15,9 @@ struct AICalibrationView: View {
     @State private var running = false
     @State private var ran = false
     @State private var proposals: [CorrectionProposal] = []
-    @State private var accepted: Set<String> = []
+    /// Indexé par position (et non par « heard ») : le LLM peut renvoyer deux propositions au même
+    /// texte entendu — sans cet index, elles partageraient un ID dupliqué et se cocheraient ensemble.
+    @State private var accepted: Set<Int> = []
 
     private var key: String { settings.apiKey(for: provider) }
 
@@ -55,8 +57,8 @@ struct AICalibrationView: View {
             if !proposals.isEmpty {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(proposals) { p in
-                            Toggle(isOn: binding(p)) {
+                        ForEach(Array(proposals.enumerated()), id: \.offset) { index, p in
+                            Toggle(isOn: binding(forIndex: index)) {
                                 HStack {
                                     HStack(spacing: 0) {   // deux styles distincts (gris + gras) gardés côte à côte
                                         Text("« \(p.heard) » → ").foregroundStyle(.secondary)
@@ -111,9 +113,9 @@ struct AICalibrationView: View {
         return nil
     }
 
-    private func binding(_ p: CorrectionProposal) -> Binding<Bool> {
-        Binding(get: { accepted.contains(p.heard) },
-                set: { if $0 { accepted.insert(p.heard) } else { accepted.remove(p.heard) } })
+    private func binding(forIndex index: Int) -> Binding<Bool> {
+        Binding(get: { accepted.contains(index) },
+                set: { if $0 { accepted.insert(index) } else { accepted.remove(index) } })
     }
 
     private func run() {
@@ -126,13 +128,13 @@ struct AICalibrationView: View {
             let result = await AICalibration.propose(transcriptions: texts, provider: p, model: m,
                                                      apiKey: k, transport: URLSessionTransport())
             proposals = result
-            accepted = Set(result.map(\.heard))
+            accepted = Set(result.indices)
             running = false; ran = true
         }
     }
 
     private func addSelected() {
-        for p in proposals where accepted.contains(p.heard) {
+        for (index, p) in proposals.enumerated() where accepted.contains(index) {
             profiles.add(CorrectionRule(heard: p.heard, replacement: p.corrected), for: CorrectionScope.global)
         }
         dismiss()

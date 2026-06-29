@@ -11,7 +11,9 @@ struct CalibrationView: View {
 
     @State private var phase: Phase = .idle
     @State private var proposed: [CorrectionRule] = []
-    @State private var accepted: Set<String> = []
+    /// Indexé par position (et non par « heard ») : deux propositions au même texte entendu
+    /// ne se cochent/décochent plus ensemble.
+    @State private var accepted: Set<Int> = []
     @State private var recorder = MicrophoneRecorder(outputDirectory: URL.temporaryDirectory.appending(path: "FlowScribeCalibration"))
 
     private var provider: EngineProvider { settings.defaultProvider }
@@ -41,8 +43,8 @@ struct CalibrationView: View {
                 if proposed.isEmpty {
                     Text("Aucune erreur détectée sur tes termes 🎉").font(.caption).foregroundStyle(.secondary)
                 }
-                ForEach(proposed, id: \.heard) { rule in
-                    Toggle(isOn: binding(for: rule)) {
+                ForEach(Array(proposed.enumerated()), id: \.offset) { index, rule in
+                    Toggle(isOn: binding(forIndex: index)) {
                         Text("« \(rule.heard) » → \(rule.replacement)")
                     }
                 }
@@ -58,6 +60,15 @@ struct CalibrationView: View {
         }
         .padding(20)
         .frame(width: 460, height: 470)
+        // Fermer le popover pendant l'enregistrement détruit la vue sans appeler stop() :
+        // on arrête explicitement l'engine/le micro pour éviter une fuite et le voyant micro figé.
+        .onDisappear {
+            if phase == .recording {
+                let rec = recorder
+                Task { _ = await rec.stop() }
+                phase = .idle
+            }
+        }
     }
 
     @ViewBuilder private var controls: some View {
@@ -76,9 +87,9 @@ struct CalibrationView: View {
         }
     }
 
-    private func binding(for rule: CorrectionRule) -> Binding<Bool> {
-        Binding(get: { accepted.contains(rule.heard) },
-                set: { if $0 { accepted.insert(rule.heard) } else { accepted.remove(rule.heard) } })
+    private func binding(forIndex index: Int) -> Binding<Bool> {
+        Binding(get: { accepted.contains(index) },
+                set: { if $0 { accepted.insert(index) } else { accepted.remove(index) } })
     }
 
     private func start() {
@@ -99,7 +110,7 @@ struct CalibrationView: View {
             do {
                 let text = try await engine.transcribeFile(at: recording.url, locale: Locale(identifier: settings.localeIdentifier))
                 proposed = CalibrationService.proposeRules(reference: reference, hypothesis: text, glossary: glossary.terms)
-                accepted = Set(proposed.map { $0.heard })
+                accepted = Set(proposed.indices)
                 phase = .review
             } catch {
                 phase = .error("Transcription échouée : \(error.localizedDescription)")
@@ -108,7 +119,7 @@ struct CalibrationView: View {
     }
 
     private func saveAccepted() {
-        for rule in proposed where accepted.contains(rule.heard) {
+        for (index, rule) in proposed.enumerated() where accepted.contains(index) {
             profiles.add(rule, for: CorrectionScope.global)
         }
         phase = .idle

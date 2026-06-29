@@ -1,16 +1,20 @@
 import XCTest
+import CoreAudio
 @testable import FlowScribeCore
 
 /// Sortie factice : simule un périphérique avec mute OU volume (selon ce qu'on lui dit de supporter).
+/// Le seul périphérique simulé porte l'ID `deviceID` ; les opérations vérifient qu'elles ciblent bien cet ID.
 private final class FakeOutput: SystemOutputControlling, @unchecked Sendable {
+    let deviceID: AudioDeviceID = 42
     var mute: Bool?
     var volume: Float?
     var sharedWithInput = false   // casque/AirPods
-    func currentMute() -> Bool? { mute }
-    func setMute(_ m: Bool) { mute = m }
-    func currentVolume() -> Float? { volume }
-    func setVolume(_ v: Float) { volume = v }
-    func outputAlsoCapturesInput() -> Bool { sharedWithInput }
+    func defaultOutputDevice() -> AudioDeviceID? { deviceID }
+    func currentMute(_ device: AudioDeviceID) -> Bool? { device == deviceID ? mute : nil }
+    func setMute(_ m: Bool, on device: AudioDeviceID) { if device == deviceID { mute = m } }
+    func currentVolume(_ device: AudioDeviceID) -> Float? { device == deviceID ? volume : nil }
+    func setVolume(_ v: Float, on device: AudioDeviceID) { if device == deviceID { volume = v } }
+    func outputAlsoCapturesInput(_ device: AudioDeviceID) -> Bool { sharedWithInput }
 }
 
 @MainActor

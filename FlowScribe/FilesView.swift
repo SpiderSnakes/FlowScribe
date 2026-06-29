@@ -53,8 +53,12 @@ struct FilesView: View {
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
-            provider = settings.defaultProvider
-            modelId = settings.selectedModelId(for: provider)
+            // Idempotent : on n'amorce le défaut qu'au premier affichage, sinon le choix d'un
+            // modèle non-défaut serait silencieusement perdu en revenant sur l'onglet Fichiers.
+            if modelId.isEmpty {
+                provider = settings.defaultProvider
+                modelId = settings.selectedModelId(for: provider)
+            }
         }
     }
 
@@ -83,10 +87,21 @@ struct FilesView: View {
         )
         .animation(.easeInOut(duration: 0.15), value: dropTargeted)
         .dropDestination(for: URL.self) { urls, _ in
-            guard let url = urls.first(where: { $0.isFileURL }) else { return false }
+            // Filtre sur les types audio, cohérent avec le NSOpenPanel (un PDF/image déposé était
+            // accepté puis échouait seulement après une tentative de transcription complète).
+            guard let url = urls.first(where: { $0.isFileURL }),
+                  let type = UTType(filenameExtension: url.pathExtension), type.conforms(to: .audio) else {
+                message = "Fichier non audio."; isError = true
+                return false
+            }
             selected = url; message = nil
             return true
         } isTargeted: { dropTargeted = $0 }
+        // Accessible à VoiceOver : la zone est décrite comme une cible de dépôt avec le fichier choisi.
+        // (Le bouton « Choisir un fichier… » reste le chemin pleinement accessible au clavier.)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Zone de dépôt de fichier audio")
+        .accessibilityValue(selected?.lastPathComponent ?? "Aucun fichier sélectionné")
     }
 
     private var modelMenu: some View {

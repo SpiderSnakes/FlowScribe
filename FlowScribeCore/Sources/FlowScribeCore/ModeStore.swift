@@ -42,10 +42,10 @@ public final class JSONModeStore: ModeStore, @unchecked Sendable {
 
     public init(url: URL) {
         self.url = url
-        if let data = try? Data(contentsOf: url), let decoded = try? JSONDecoder().decode(Payload.self, from: data) {
-            payload = decoded
-        } else {
-            payload = Payload(modes: [], activeModeId: nil)
+        // Distingue « absent » (1er lancement → vide) de « présent mais corrompu » (sauvegarde avant écrasement).
+        payload = JSONStorePersistence.loadOrBackup(url: url, category: "ModeStore",
+                                                    default: Payload(modes: [], activeModeId: nil)) {
+            try JSONDecoder().decode(Payload.self, from: $0)
         }
     }
 

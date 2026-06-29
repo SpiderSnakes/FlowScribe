@@ -8,6 +8,9 @@ final class HUDModel {
     /// Niveau micro lissé (0…1), interpolé à ~60fps vers la dernière mesure — c'est ce que lisent les vues.
     /// Le micro n'envoie qu'~10 mesures/s ; sans ce lissage la waveform « saute » (saccades).
     private(set) var level: Double = 0
+    /// « Réduire les animations » : on saute le lissage 60fps et on cale directement le niveau,
+    /// pour ne pas laisser bouger la waveform (et le timer) malgré le réglage d'accessibilité.
+    var reduceMotion = false
 
     private var target: Double = 0
     private var timer: Timer?
@@ -15,7 +18,13 @@ final class HUDModel {
     /// Mesure brute du micro (~10 Hz) : on ne fait que poser la cible ; le lissage tourne à 60fps.
     func pushLevel(_ v: Double) {
         target = max(0, min(1, v))
-        startTicking()
+        if reduceMotion {
+            // Pas de timer ni d'interpolation : on fige le niveau sur la dernière mesure.
+            timer?.invalidate(); timer = nil
+            level = target
+        } else {
+            startTicking()
+        }
     }
 
     func resetLevels() {
@@ -86,6 +95,9 @@ struct LiveHUDView: View {
             .clipShape(Capsule())
             .overlay(Capsule().strokeBorder(Theme.hairline, lineWidth: 1))
             .shadow(color: .black.opacity(0.45), radius: 14, y: 6)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Niveau micro")
+            .accessibilityValue(model.state == .recording ? "Enregistrement en cours" : "En attente")
         }
     }
 }

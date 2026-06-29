@@ -137,6 +137,7 @@ struct APIKeysPanel: View {
     }
 
     private func toggle(_ p: EngineProvider) {
+        testing = false                      // un test en cours est abandonné : on retire le spinner
         if editing == p { editing = nil; return }
         editing = p
         keyDraft = settings.apiKey(for: p)   // toujours rechargée depuis le Trousseau (jamais d'état périmé)
@@ -146,7 +147,10 @@ struct APIKeysPanel: View {
     }
 
     private func save(_ p: EngineProvider) {
-        saveResult = settings.setAPIKey(keyDraft, for: p)
+        // Trim : un saut de ligne / espace collé en fin casse l'en-tête HTTP (401 ou rejet URLSession).
+        let clean = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        keyDraft = clean                      // l'UI reflète la valeur réellement persistée
+        saveResult = settings.setAPIKey(clean, for: p)
         result = nil
         refreshFlags()
     }
@@ -161,11 +165,17 @@ struct APIKeysPanel: View {
 
     private func test(_ p: EngineProvider) {
         guard let config = p.config else { return }
-        let value = keyDraft
+        // Même normalisation qu'à l'enregistrement : on teste exactement ce qui sera persisté.
+        let value = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let target = p
         result = nil; saveResult = nil; testing = true
         Task {
             let engine = CloudTranscriptionEngine(config: config, apiKey: value, transport: URLSessionTransport())
-            result = await engine.validateKey()
+            let r = await engine.validateKey()
+            // L'appel réseau peut durer : on n'applique le résultat que si CE fournisseur est encore affiché
+            // (sinon l'utilisateur a replié la ligne ou ouvert un autre fournisseur entre-temps).
+            guard editing == target else { testing = false; return }
+            result = r
             testing = false
         }
     }

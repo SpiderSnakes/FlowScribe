@@ -124,6 +124,11 @@ struct SettingsView: View {
         .task {
             micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value
         }
+        // Re-énumère au retour dans l'app : un micro branché/débranché (hot-plug) apparaît/disparaît
+        // dans le Picker au lieu de rester figé sur l'énumération initiale.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value }
+        }
     }
 
     /// Version affichée, lue dans l'Info.plist — MÊMES clés que le panneau « À propos » de macOS,
@@ -139,8 +144,13 @@ struct SettingsView: View {
         HStack(spacing: 8) {
             Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(ok ? .green : .orange)
+                .accessibilityHidden(true)   // icône décorative : l'état est porté par .accessibilityValue
             Text(label)
             Spacer()
         }
+        // Regroupe l'icône + le libellé en un seul élément annoncé « Micro : autorisé / non autorisé ».
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityValue(ok ? "Autorisé" : "Non autorisé")
     }
 }

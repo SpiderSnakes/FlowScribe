@@ -65,10 +65,6 @@ struct HomeView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Popover (et non sheet) → un clic à l'extérieur referme et revient à la fenêtre principale.
-        .popover(item: $selected, arrowEdge: .leading) { r in
-            TranscriptionDetailView(record: r, history: history, profiles: profiles, onRetranscribe: onRetranscribe)
-        }
     }
 
     private var emptyState: some View {
@@ -132,6 +128,13 @@ struct HomeView: View {
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        // Popover ancré sur la carte tapée (et non sur tout le conteneur) → la flèche pointe
+        // vers l'élément concerné. Un clic à l'extérieur referme et revient à la fenêtre principale.
+        .popover(item: Binding(get: { selected?.id == r.id ? selected : nil },
+                               set: { selected = $0 }),
+                 arrowEdge: .leading) { rec in
+            TranscriptionDetailView(record: rec, history: history, profiles: profiles, onRetranscribe: onRetranscribe)
+        }
     }
 
     private func metaChip(_ text: String) -> some View {

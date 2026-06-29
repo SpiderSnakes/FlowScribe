@@ -87,7 +87,12 @@ struct FlowScribeApp: App {
                                           transport: URLSessionTransport()) ?? apple
         let service = TranscriptionService(primary: primary, fallback: apple, postCorrector: PostCorrector(store: profiles))
         let outcome = await service.transcribe(fileAt: url, locale: Locale(identifier: settings.localeIdentifier), audioDuration: duration)
-        guard case let .success(text, engineId, _) = outcome else { return false }
+        guard case let .success(text, engineId, _) = outcome else {
+            // Échec : pas d'entrée d'historique → on supprime la copie importée pour ne pas
+            // laisser l'audio de l'utilisateur orphelin (fuite de stockage / vie privée).
+            history.discardImported(name)
+            return false
+        }
         history.add(TranscriptionRecord(id: id, date: Date(), text: text, engineId: engineId,
                                         locale: settings.localeIdentifier, audioFileName: name, duration: duration))
         return true
@@ -123,6 +128,10 @@ struct FlowScribeApp: App {
                     + "reformulation=\(settings.cleanupEnabled)")
         AppLog.info("App", "permissions — micro=\(String(describing: permissions.mic)) "
                     + "voix=\(String(describing: permissions.speech)) accessibilité=\(permissions.accessibility)")
+        // Instance unique : `app.terminate()` étant asynchrone, on attend que l'ancienne instance soit
+        // RÉELLEMENT sortie avant de toucher l'état partagé (historique, dossier d'enregistrements,
+        // raccourci global). Évite que recoverOrphans/purge ne ramassent un fichier encore en écriture.
+        await AppDelegate.waitForPreviousInstancesToExit()
         // Pré-télécharge le modèle de transcription Apple (on-device) dès le lancement : il doit être
         // installé AVANT la 1re dictée, sinon échec « assetDownloadInProgress ».
         let localeId = settings.localeIdentifier
@@ -190,11 +199,14 @@ struct FlowScribeApp: App {
         controller = c
         bridge = HotkeyBridge(controller: c)
         history.purge(maxAgeDays: settings.retentionDays)
-        settings.onChange = { [weak c, weak settings, profiles, hud, recorder] in
+        settings.onChange = { [weak c, weak settings, profiles, hud, recorder, history] in
             guard let c, let settings else { return }
             AppLog.info("App", "réglages modifiés — fournisseur=\(String(describing: settings.defaultProvider)) "
                         + "locale=\(settings.localeIdentifier) reformulation=\(settings.cleanupEnabled) "
                         + "micro=\(settings.selectedMicrophoneUID.isEmpty ? "système" : "spécifique")")
+            // Réduire la rétention purge immédiatement (audio + texte) — la promesse de confidentialité
+            // doit s'appliquer sans attendre le prochain lancement.
+            history.purge(maxAgeDays: settings.retentionDays)
             c.configure(service: Self.makeService(from: settings, profiles: profiles),
                         locale: Locale(identifier: settings.localeIdentifier))
             Self.applyOptions(to: c, settings: settings)
@@ -237,7 +249,30 @@ struct FlowScribeApp: App {
         let model = settings.cleanupModelId.isEmpty ? provider.defaultTextModelId : settings.cleanupModelId
         let prompt = settings.cleanupPrompt
         let svc = TextLLMService(provider: provider, model: model, apiKey: key, transport: URLSessionTransport())
-        return { (try? await svc.complete(system: prompt, user: $0)) ?? $0 }
+        // Étape best-effort : on borne explicitement la reformulation (~15 s). Sans cette limite,
+        // un endpoint LLM lent suspendrait la livraison d'un texte DÉJÀ transcrit jusqu'au timeout
+        // réseau par défaut (~60 s). En cas de dépassement/erreur, on retombe sur le texte original.
+        return { text in
+            (try? await raceWithTimeout(seconds: 15) { try await svc.complete(system: prompt, user: text) }) ?? text
+        }
+    }
+
+    /// Course entre une opération et un délai : renvoie le résultat de l'opération si elle finit
+    /// avant le délai, sinon lève une erreur de dépassement (et annule l'opération). Helper local
+    /// au target app — `withTimeout` du core est `internal` et inaccessible ici.
+    private static func raceWithTimeout<T: Sendable>(
+        seconds: Double, _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw CancellationError()
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else { throw CancellationError() }
+            return result
+        }
     }
 
     private static func resultMessage(for outcome: TranscriptionOutcome) -> String {

@@ -66,8 +66,9 @@ final class SettingsStore {
     }
     static let defaultCleanupPrompt = TextLLMService.defaultPrompt
     /// Rétention de l'historique en jours (0 = illimité).
+    /// `notifyChange()` permet de déclencher une purge immédiate à la baisse (cf. FlowScribeApp.onChange).
     var retentionDays: Int {
-        didSet { defaults.set(retentionDays, forKey: "retentionDays") }
+        didSet { defaults.set(retentionDays, forKey: "retentionDays"); notifyChange() }
     }
     /// Onboarding vu au moins une fois (sinon on affiche l'accueil des permissions).
     var hasSeenOnboarding: Bool {
@@ -93,9 +94,20 @@ final class SettingsStore {
     var soundEffectsEnabled: Bool {
         didSet { defaults.set(soundEffectsEnabled, forKey: "soundEffectsEnabled") }
     }
+    @ObservationIgnored private var reconcilingLaunchAtLogin = false
     /// Lancement au démarrage de session (synchronisé avec SMAppService).
     var launchAtLogin: Bool {
-        didSet { LaunchAtLogin.set(launchAtLogin) }
+        didSet {
+            guard !reconcilingLaunchAtLogin else { return }
+            let effective = LaunchAtLogin.set(launchAtLogin)
+            // Réconcilie l'interrupteur avec l'état RÉEL du système : si register/unregister a échoué
+            // (ou attend une validation), l'UI ne doit pas rester sur une valeur trompeuse.
+            if effective != launchAtLogin {
+                reconcilingLaunchAtLogin = true
+                launchAtLogin = effective
+                reconcilingLaunchAtLogin = false
+            }
+        }
     }
     /// Tourner en arrière-plan : masque l'icône du Dock (l'app reste accessible via la barre de menus + raccourci).
     var runInBackground: Bool {

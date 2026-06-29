@@ -17,6 +17,8 @@ struct RulesEditorView: View {
     @State private var loaded = false
     @State private var newHeard = ""
     @State private var newReplacement = ""
+    /// Coalesce les frappes : on n'écrit le store qu'après une courte pause, pas à chaque caractère.
+    @State private var commitTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -40,7 +42,18 @@ struct RulesEditorView: View {
             }
         }
         .onAppear(perform: load)
-        .onChange(of: editing) { _, _ in if loaded { commit() } }
+        .onChange(of: editing) { _, _ in if loaded { scheduleCommit() } }
+        .onDisappear { commitTask?.cancel(); commit() }   // sauvegarde finale immédiate à la fermeture
+    }
+
+    /// Débounce : remplace l'écriture-par-frappe par une écriture coalescée (~0,5 s après la dernière modif).
+    private func scheduleCommit() {
+        commitTask?.cancel()
+        commitTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            commit()
+        }
     }
 
     private func load() {
@@ -73,11 +86,15 @@ private struct RuleRow: View {
     let onDelete: () -> Void
     var body: some View {
         HStack(spacing: 8) {
-            Toggle("", isOn: $rule.enabled).labelsHidden().toggleStyle(.switch).controlSize(.mini)
+            // Titre réel masqué visuellement mais lu par VoiceOver (au lieu d'un interrupteur anonyme).
+            Toggle("Activer la règle \(rule.heard)", isOn: $rule.enabled)
+                .labelsHidden().toggleStyle(.switch).controlSize(.mini)
             TextField("entendu", text: $rule.heard).textFieldStyle(.roundedBorder)
             Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
             TextField("corrigé", text: $rule.replacement).textFieldStyle(.roundedBorder)
-            Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }.buttonStyle(.borderless)
+            Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Supprimer la règle \(rule.heard)")
         }
         .opacity(rule.enabled ? 1 : 0.5)
     }

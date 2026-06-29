@@ -118,6 +118,10 @@ final class HistoryModel {
         return name
     }
 
+    /// Supprime une copie importée restée orpheline (échec de transcription avant historisation) :
+    /// évite une rétention silencieuse de l'audio de l'utilisateur dans Application Support.
+    func discardImported(_ name: String) { deleteAudio(name) }
+
     func audioURL(_ name: String) -> URL { recordingsDir.appending(path: name) }
     func audioExists(_ name: String) -> Bool { FileManager.default.fileExists(atPath: audioURL(name).path) }
     private func deleteAudio(_ name: String) {

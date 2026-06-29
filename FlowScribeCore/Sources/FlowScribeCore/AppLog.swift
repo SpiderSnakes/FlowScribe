@@ -38,9 +38,11 @@ public enum AppLog {
 
     private static func write(_ level: Level, _ category: String, _ message: String) {
         switch level {                                  // os.Logger est Sendable & thread-safe → hors verrou
-        case .info:  osLog.info("[\(category, privacy: .public)] \(message, privacy: .public)")
-        case .warn:  osLog.warning("[\(category, privacy: .public)] \(message, privacy: .public)")
-        case .error: osLog.error("[\(category, privacy: .public)] \(message, privacy: .public)")
+        // Seule la `category` est marquée publique ; le message dynamique garde la redaction par défaut
+        // d'os.Logger (privacy: .private) dans le log unifié — évite de graver en clair tout contenu sensible.
+        case .info:  osLog.info("[\(category, privacy: .public)] \(message)")
+        case .warn:  osLog.warning("[\(category, privacy: .public)] \(message)")
+        case .error: osLog.error("[\(category, privacy: .public)] \(message)")
         }
         lock.lock(); defer { lock.unlock() }
         let url = fileURL                               // instantané sous verrou

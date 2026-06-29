@@ -36,9 +36,14 @@ private struct PermissionRow: View {
         HStack(spacing: 8) {
             Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(ok ? .green : .orange)
+                .accessibilityHidden(true)   // icône décorative : l'état est porté par .accessibilityValue
             Text(label)
             Spacer()
         }
+        // Regroupe l'icône + le libellé en un seul élément annoncé « Micro : autorisé / non autorisé ».
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityValue(ok ? "Autorisé" : "Non autorisé")
     }
 }
 

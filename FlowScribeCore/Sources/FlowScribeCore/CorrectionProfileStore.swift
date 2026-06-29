@@ -32,11 +32,10 @@ public final class JSONCorrectionProfileStore: CorrectionProfileStore, @unchecke
 
     public init(url: URL) {
         self.url = url
-        if let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode([String: [CorrectionRule]].self, from: data) {
-            byEngine = decoded
-        } else {
-            byEngine = [:]
+        // Distingue « absent » (1er lancement → vide) de « présent mais corrompu » (sauvegarde avant écrasement).
+        byEngine = JSONStorePersistence.loadOrBackup(url: url, category: "CorrectionProfileStore",
+                                                     default: [String: [CorrectionRule]]()) {
+            try JSONDecoder().decode([String: [CorrectionRule]].self, from: $0)
         }
     }
     public func rules(for engineId: String) -> [CorrectionRule] {

@@ -20,6 +20,10 @@ public final class MediaController {
     }
 
     /// Met en pause ce qui joue, et mémorise pour ne relancer que ça.
+    /// Volontairement SYNCHRONE : la musique doit être effectivement en pause AVANT que l'utilisateur
+    /// commence à parler, et la reprise ne doit pas pouvoir précéder la pause (ordre garanti). Le coût
+    /// est de quelques aller-retours Apple Event courts au démarrage de la dictée — acceptable, et plus
+    /// sûr qu'un déport asynchrone qui introduirait une course pause/reprise sur les dictées très brèves.
     public func pauseForDictation() {
         guard enabled else { return }
         paused = []

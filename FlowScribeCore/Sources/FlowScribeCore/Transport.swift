@@ -6,7 +6,18 @@ public protocol Transport: Sendable {
 
 public struct URLSessionTransport: Transport {
     private let session: URLSession
-    public init(session: URLSession = .shared) { self.session = session }
+
+    /// Session par défaut avec des délais bornés (les défauts d'Apple sont 60 s / 7 jours) :
+    /// un test de clé ou une reformulation sur réseau dégradé échoue vite au lieu de pendre.
+    private static let bounded: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.timeoutIntervalForRequest = 20
+        cfg.timeoutIntervalForResource = 60
+        cfg.waitsForConnectivity = false
+        return URLSession(configuration: cfg)
+    }()
+
+    public init(session: URLSession? = nil) { self.session = session ?? URLSessionTransport.bounded }
     public func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {

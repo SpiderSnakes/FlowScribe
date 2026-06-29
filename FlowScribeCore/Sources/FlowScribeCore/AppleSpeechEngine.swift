@@ -1,7 +1,6 @@
 import Foundation
 import Speech
 import AVFoundation
-import Synchronization
 
 public enum AppleSpeechError: Error {
     case unavailable
@@ -16,9 +15,29 @@ public final class AppleSpeechEngine: TranscriptionEngine {
     /// État de disponibilité du modèle on-device, mis à jour par `prepareModel`. OPTIMISTE par défaut
     /// (`true`) : tant qu'on n'a pas constaté l'inverse, on n'empêche JAMAIS d'enregistrer. Sert au
     /// garde-fou pré-enregistrement (ne pas lancer une dictée Apple vouée à échouer).
-    private static let readyFlag = Atomic<Bool>(true)
+    ///
+    /// On conserve la locale qui a écrit le drapeau pour éviter une incohérence drapeau↔locale lors de
+    /// préparations concurrentes (toggle rapide de locale) : `isModelReady(for:)` ne fait confiance au
+    /// drapeau que s'il provient de la locale demandée. Verrou plutôt qu'`Atomic` car on stocke une paire.
+    private static let readyLock = NSLock()
+    nonisolated(unsafe) private static var readyState: (locale: Locale?, ready: Bool) = (nil, true)
+
     /// `true` si le dernier `prepareModel` a confirmé le modèle prêt (ou si on n'a pas encore vérifié).
-    public static var isModelReady: Bool { readyFlag.load(ordering: .relaxed) }
+    /// Sémantique OPTIMISTE conservée (compatibilité) : ignore la locale.
+    public static var isModelReady: Bool {
+        readyLock.lock(); defer { readyLock.unlock() }
+        return readyState.ready
+    }
+
+    /// `true` si le modèle est prêt POUR la locale demandée. Optimiste tant qu'aucune préparation n'a
+    /// eu lieu (`locale == nil`) ou si la dernière préparation concernait une autre locale (on n'a pas
+    /// d'info négative fiable pour celle-ci → on n'empêche pas d'enregistrer).
+    public static func isModelReady(for locale: Locale) -> Bool {
+        readyLock.lock(); defer { readyLock.unlock() }
+        guard let last = readyState.locale else { return true }
+        guard last.identifier(.bcp47) == locale.identifier(.bcp47) else { return true }
+        return readyState.ready
+    }
 
     public init() {}
 
@@ -36,11 +55,19 @@ public final class AppleSpeechEngine: TranscriptionEngine {
             }
 
             let analyzer = SpeechAnalyzer(modules: [transcriber])
-            if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
-                try await analyzer.finalizeAndFinish(through: lastSample)
-            } else {
-                await analyzer.cancelAndFinishNow()
+            // Annulation coopérative : si le timeout (TranscriptionService) ou Échap annule la tâche,
+            // on arrête SpeechAnalyzer au lieu de le laisser traiter tout le fichier pour rien (CPU/batterie).
+            try Task.checkCancellation()
+            try await withTaskCancellationHandler {
+                if let lastSample = try await analyzer.analyzeSequence(from: audioFile) {
+                    try await analyzer.finalizeAndFinish(through: lastSample)
+                } else {
+                    await analyzer.cancelAndFinishNow()
+                }
+            } onCancel: {
+                Task { await analyzer.cancelAndFinishNow() }
             }
+            try Task.checkCancellation()
             let text = String(try await collected.characters)
             AppLog.info("AppleSpeech", "OK — \(text.count) car en \(String(format: "%.1f", Date().timeIntervalSince(started)))s")
             return text
@@ -57,14 +84,20 @@ public final class AppleSpeechEngine: TranscriptionEngine {
     public static func prepareModel(locale: Locale) async -> Bool {
         do {
             _ = try await makeReadyTranscriber(locale: locale)
-            readyFlag.store(true, ordering: .relaxed)
+            setReady(true, for: locale)
             AppLog.info("AppleSpeech", "modèle prêt (\(locale.identifier))")
             return true
         } catch {
-            readyFlag.store(false, ordering: .relaxed)
+            setReady(false, for: locale)
             AppLog.warn("AppleSpeech", "préchargement du modèle (\(locale.identifier)) : \(error)")
             return false
         }
+    }
+
+    /// Écrit le drapeau de disponibilité ET la locale concernée sous verrou (cohérence drapeau↔locale).
+    private static func setReady(_ ready: Bool, for locale: Locale) {
+        readyLock.lock(); defer { readyLock.unlock() }
+        readyState = (locale, ready)
     }
 
     /// Vérifie la disponibilité et installe le modèle de langue si nécessaire (avec journalisation détaillée).

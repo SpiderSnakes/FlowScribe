@@ -52,9 +52,12 @@ struct ModesView: View {
             } else {
                 Text("Actif").font(.caption.bold()).foregroundStyle(Theme.accent)
             }
-            Button { editing = mode } label: { Image(systemName: "pencil") }.buttonStyle(.borderless)
+            Button { editing = mode } label: { Image(systemName: "pencil") }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Modifier le mode \(mode.name)")
             Button(role: .destructive) { modes.delete(mode) } label: { Image(systemName: "trash") }
                 .buttonStyle(.borderless)
+                .accessibilityLabel("Supprimer le mode \(mode.name)")
                 .disabled(modes.modes.count <= 1)   // garder au moins un mode
         }
         .padding(14)
@@ -132,6 +135,12 @@ private struct ModeEditor: View {
                             .font(.callout)
                         Text("Décris le style voulu (e-mail, notes, code, ton…). Nécessite la clé du fournisseur.")
                             .font(.caption).foregroundStyle(.secondary)
+                        // Avertit à la configuration (comme la calibration IA) : sans clé, la reformulation est inerte.
+                        if settings.apiKey(for: reformProvider).isEmpty {
+                            Label("Ajoute ta clé \(reformProvider.displayName) dans Réglages → Clés API.",
+                                  systemImage: "exclamationmark.triangle")
+                                .font(.caption).foregroundStyle(.orange)
+                        }
                     }
                 }
             }

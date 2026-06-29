@@ -19,25 +19,38 @@ public final class TranscriptionService: Sendable {
     }
 
     public func transcribe(fileAt url: URL, locale: Locale, audioDuration: TimeInterval? = nil) async -> TranscriptionOutcome {
-        let timeout = effectiveTimeout(for: audioDuration)
+        // Timeout calculé PAR moteur : l'étirement basé sur la durée ne vaut que pour les moteurs locaux
+        // (cf. effectiveTimeout) ; un moteur cloud bloqué doit basculer vers le repli sous un délai borné.
+        let primaryTimeout = effectiveTimeout(for: audioDuration, engine: primary)
+        let fallbackTimeout = effectiveTimeout(for: audioDuration, engine: fallback)
         AppLog.info("Transcription", "début \(url.lastPathComponent) — primaire=\(primary.id) repli=\(fallback.id) "
-                    + "locale=\(locale.identifier) timeout=\(Int(timeout))s")
-        if let text = await tryEngine(primary, url: url, locale: locale, timeout: timeout) {
+                    + "locale=\(locale.identifier) timeout=\(Int(primaryTimeout))s/\(Int(fallbackTimeout))s")
+        if let text = await tryEngine(primary, url: url, locale: locale, timeout: primaryTimeout) {
             return .success(text: corrected(text, primary.id), engineId: primary.id, usedFallback: false)
         }
         // Repli (sauf si le repli est le même moteur que le primaire — évite de doubler le timeout).
-        if primary.id != fallback.id, let text = await tryEngine(fallback, url: url, locale: locale, timeout: timeout) {
+        if primary.id != fallback.id, let text = await tryEngine(fallback, url: url, locale: locale, timeout: fallbackTimeout) {
             return .success(text: corrected(text, fallback.id), engineId: fallback.id, usedFallback: true)
         }
         AppLog.error("Transcription", "échec final (tous les moteurs) sur \(url.lastPathComponent)")
         return .failed
     }
 
-    /// Le moteur on-device peut être plus lent que le temps réel sur les longues dictées :
-    /// on étire le délai en fonction de la durée audio (plancher = `timeoutSeconds`).
-    func effectiveTimeout(for duration: TimeInterval?) -> Double {
+    /// Délai propre au moteur. Le moteur on-device peut être plus lent que le temps réel sur les longues
+    /// dictées : on étire alors le délai en fonction de la durée audio (plancher = `timeoutSeconds`).
+    /// Pour un moteur cloud (réseau), on garde un plafond borné : un upload bloqué doit basculer vite
+    /// vers le repli local plutôt que d'attendre plusieurs minutes.
+    func effectiveTimeout(for duration: TimeInterval?, engine: TranscriptionEngine) -> Double {
         guard let d = duration, d > 0 else { return timeoutSeconds }
-        return max(timeoutSeconds, d * 2 + 20)
+        if engine.capabilities.isLocal {
+            return max(timeoutSeconds, d * 2 + 20)
+        }
+        return max(timeoutSeconds, min(d + 30, 90))
+    }
+
+    /// Surcharge de compatibilité : applique le calcul du moteur primaire (rétro-compatible).
+    func effectiveTimeout(for duration: TimeInterval?) -> Double {
+        effectiveTimeout(for: duration, engine: primary)
     }
 
     /// Applique la post-correction propre au moteur qui a produit le texte.

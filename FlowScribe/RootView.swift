@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import FlowScribeCore
 
 struct RootView: View {
@@ -18,9 +19,12 @@ struct RootView: View {
     @State private var micDevices: [AudioInputDevice] = []
 
     /// Nom du micro actif, dérivé de la liste déjà chargée (pas de ré-énumération CoreAudio).
+    /// Si le périphérique choisi a disparu (débranché), on le signale explicitement plutôt que de
+    /// retomber sur un libellé générique : la dictée utilisera en réalité le micro système.
     private var micName: String {
-        settings.selectedMicrophoneUID.isEmpty ? "Micro système"
-            : (micDevices.first { $0.id == settings.selectedMicrophoneUID }?.name ?? "Micro")
+        guard !settings.selectedMicrophoneUID.isEmpty else { return "Micro système" }
+        return micDevices.first { $0.id == settings.selectedMicrophoneUID }?.name
+            ?? "Micro indisponible — système"
     }
 
     /// Sélecteur de micro flottant (coin haut-droit du contenu), posé sur le grainient sans barre opaque.
@@ -74,6 +78,11 @@ struct RootView: View {
             .task {
                 // énumération CoreAudio hors du thread principal (AudioInputDevice est Sendable)
                 micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value
+            }
+            // Re-énumère au retour dans l'app : prend en compte un micro branché/débranché (hot-plug)
+            // pendant la session, plutôt que de rester figé sur l'énumération initiale.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                Task { micDevices = await Task.detached { CoreAudioDevices.inputDevices() }.value }
             }
         }
         .tint(Theme.accent)

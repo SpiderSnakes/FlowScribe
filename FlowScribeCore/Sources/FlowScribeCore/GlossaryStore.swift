@@ -29,9 +29,10 @@ public final class JSONGlossaryStore: GlossaryStore, @unchecked Sendable {
     private var storage: [String]
     public init(url: URL) {
         self.url = url
-        if let data = try? Data(contentsOf: url), let decoded = try? JSONDecoder().decode([String].self, from: data) {
-            storage = decoded
-        } else { storage = [] }
+        // Distingue « absent » (1er lancement → vide) de « présent mais corrompu » (sauvegarde avant écrasement).
+        storage = JSONStorePersistence.loadOrBackup(url: url, category: "GlossaryStore", default: [String]()) {
+            try JSONDecoder().decode([String].self, from: $0)
+        }
     }
     public var terms: [String] { lock.lock(); defer { lock.unlock() }; return storage }
     public func add(_ term: String) {

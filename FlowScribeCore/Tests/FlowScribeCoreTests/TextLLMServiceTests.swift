@@ -29,12 +29,16 @@ final class TextLLMServiceTests: XCTestCase {
         XCTAssertEqual(mock.lastRequest?.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
     }
 
-    func test_google_generateContent_parsesText_andKeyInQuery() async throws {
+    func test_google_generateContent_parsesText_andKeyInHeaderNotURL() async throws {
         let mock = MockTransport(statusCode: 200, body: Data(#"{"candidates":[{"content":{"parts":[{"text":"corrigé"}]}}]}"#.utf8))
         let out = try await service(.google, mock).complete(system: "s", user: "u")
         XCTAssertEqual(out, "corrigé")
-        XCTAssertTrue(mock.lastRequest?.url?.absoluteString.contains("generativelanguage.googleapis.com") ?? false)
-        XCTAssertTrue(mock.lastRequest?.url?.absoluteString.contains("key=k") ?? false)
+        let url = mock.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("generativelanguage.googleapis.com"))
+        // Sécurité : la clé passe par l'en-tête x-goog-api-key, JAMAIS dans l'URL (sinon elle fuiterait
+        // via NSErrorFailingURLStringKey dans les logs d'erreur).
+        XCTAssertEqual(mock.lastRequest?.value(forHTTPHeaderField: "x-goog-api-key"), "k")
+        XCTAssertFalse(url.contains("key=k"), "la clé ne doit pas être dans l'URL")
     }
 
     func test_httpError_throws() async {

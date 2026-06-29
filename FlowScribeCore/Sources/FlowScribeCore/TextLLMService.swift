@@ -20,14 +20,17 @@ public struct TextLLMService: Sendable {
     public func complete(system: String, user: String) async throws -> String {
         let started = Date()
         let request = try buildRequest(system: system, user: user)
-        // `host` seulement (pas l'URL complète) : la clé Gemini est passée en query → ne JAMAIS la logger.
+        // `host` seulement (jamais l'URL complète) : par prudence on ne journalise aucune query-string.
         AppLog.info("Reformulation", "envoi \(String(describing: provider)) modèle=\(model) "
                     + "→ \(request.url?.host ?? "?") (\(user.count) car)")
         do {
             let (data, response) = try await transport.send(request)
             let secs = String(format: "%.1fs", Date().timeIntervalSince(started))
             guard (200..<300).contains(response.statusCode) else {
-                AppLog.error("Reformulation", "\(String(describing: provider)) HTTP \(response.statusCode) en \(secs)")
+                // Le corps porte un message d'erreur actionnable (modèle inconnu, clé sans accès,
+                // quota, payload invalide). On le journalise tronqué — jamais l'URL ni la clé.
+                let body = String(decoding: data, as: UTF8.self)
+                AppLog.error("Reformulation", "\(String(describing: provider)) HTTP \(response.statusCode) en \(secs) — \(Self.snippet(body))")
                 throw TextLLMError.httpError(response.statusCode)
             }
             let text = try parse(data)
@@ -36,8 +39,13 @@ public struct TextLLMService: Sendable {
         } catch let e as TextLLMError {
             throw e   // déjà journalisé
         } catch {
+            // On ne journalise JAMAIS `\(error)` brut : l'UserInfo d'un URLError porte
+            // NSErrorFailingURLStringKey (l'URL complète, qui pourrait contenir un secret).
+            // localizedDescription + domaine/code sont sûrs et suffisants au diagnostic.
+            let ns = error as NSError
             AppLog.error("Reformulation", "\(String(describing: provider)) échec en "
-                         + "\(String(format: "%.1fs", Date().timeIntervalSince(started))) : \(error)")
+                         + "\(String(format: "%.1fs", Date().timeIntervalSince(started))) : "
+                         + "\(error.localizedDescription) [\(ns.domain) \(ns.code)]")
             throw error
         }
     }
@@ -66,7 +74,7 @@ public struct TextLLMService: Sendable {
             "messages": [["role": "system", "content": system], ["role": "user", "content": user]],
             "temperature": 0.2,
         ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
         return req
     }
 
@@ -84,24 +92,32 @@ public struct TextLLMService: Sendable {
             "system": system,
             "messages": [["role": "user", "content": user]],
         ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
         return req
     }
 
-    // Google Gemini — generateContent (clé en query, encodée proprement via URLComponents)
+    // Google Gemini — generateContent (clé en en-tête x-goog-api-key, JAMAIS dans l'URL :
+    // une clé en query-string fuiterait via NSErrorFailingURLStringKey dans les logs d'erreur).
     private func geminiRequest(system: String, user: String) throws -> URLRequest {
-        var comps = URLComponents(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent")
-        comps?.queryItems = [URLQueryItem(name: "key", value: apiKey)]   // percent-encode la clé
-        guard let url = comps?.url else { throw TextLLMError.badResponse }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+            throw TextLLMError.badResponse
+        }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
+        req.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let payload: [String: Any] = [
             "systemInstruction": ["parts": [["text": system]]],
             "contents": [["role": "user", "parts": [["text": user]]]],
         ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        req.httpBody = try JSONSerialization.data(withJSONObject: payload)
         return req
+    }
+
+    /// Tronque un corps de réponse d'erreur pour le log (message du fournisseur, jamais de secret).
+    private static func snippet(_ s: String) -> String {
+        let oneLine = s.replacingOccurrences(of: "\n", with: " ")
+        return oneLine.count > 300 ? String(oneLine.prefix(300)) + "…" : oneLine
     }
 
     private func parse(_ data: Data) throws -> String {

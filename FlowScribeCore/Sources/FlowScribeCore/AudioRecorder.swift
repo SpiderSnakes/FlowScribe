@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import CoreAudio
+import Accelerate
 import Synchronization
 
 public protocol AudioRecorder: Sendable {
@@ -24,6 +25,9 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
 
     /// Niveau de voix live (RMS 0→1) pendant l'enregistrement.
     public var onLevel: (@Sendable (Float) -> Void)?
+    /// Signalé en temps réel si la config audio change en cours d'enregistrement (route/format) : l'audio
+    /// capturé après ce point peut être tronqué. Permet à l'UI d'avertir l'utilisateur sans attendre `stop()`.
+    public var onTruncated: (@Sendable () -> Void)?
     /// UID du micro à utiliser (vide/nil = micro système par défaut). Pris en compte au prochain `start()`.
     public var preferredDeviceUID: String?
 
@@ -40,34 +44,59 @@ public final class MicrophoneRecorder: AudioRecorder, @unchecked Sendable {
         // fournisseurs (OpenAI/Mistral rejettent le .caf) sans jamais risquer de perdre l'audio capturé.
         let url = outputDirectory.appending(path: "rec-\(Int(Date().timeIntervalSince1970)).caf")
         let input = engine.inputNode
-        // Route vers le micro choisi (sinon micro système par défaut).
-        if let uid = preferredDeviceUID, !uid.isEmpty,
-           let devID = CoreAudioDevices.deviceID(forUID: uid), let au = input.audioUnit {
-            var dev = devID
-            AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice,
-                                 kAudioUnitScope_Global, 0, &dev, UInt32(MemoryLayout<AudioDeviceID>.size))
+        // Route vers le micro choisi (sinon micro système par défaut). On journalise tout échec de
+        // routage : sans ça, un micro choisi indisponible (débranché…) replie silencieusement sur le
+        // micro système et l'utilisateur croit dicter dans le mauvais micro.
+        if let uid = preferredDeviceUID, !uid.isEmpty {
+            if let devID = CoreAudioDevices.deviceID(forUID: uid), let au = input.audioUnit {
+                var dev = devID
+                let status = AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice,
+                                                  kAudioUnitScope_Global, 0, &dev, UInt32(MemoryLayout<AudioDeviceID>.size))
+                if status != noErr {
+                    AppLog.warn("AudioRecorder", "échec du routage vers le micro choisi (status \(status)) — repli sur le micro système par défaut")
+                }
+            } else {
+                AppLog.warn("AudioRecorder", "micro choisi indisponible (\(uid)) — repli sur le micro système par défaut")
+            }
         }
         let format = input.outputFormat(forBus: 0)
         AppLog.info("AudioRecorder", "start \(url.lastPathComponent) — \(Int(format.sampleRate))Hz \(format.channelCount)ch")
         let audioFile = try AVAudioFile(forWriting: url, settings: format.settings)
         let levelHandler = onLevel
         writeFailed.store(false, ordering: .relaxed)
+        // Le tap est installé APRÈS un démarrage réussi de l'engine : `installTap` enregistre le tap
+        // immédiatement (avant tout `start()`), donc si `start()` levait après l'installation, le tap
+        // resterait sur le bus 0 et le prochain `start()` (réutilisation de l'instance, ex. « Recommencer »)
+        // déclencherait l'exception AVFoundation « only one tap may be installed on any bus » → crash.
+        // On démarre d'abord, puis on tappe ; en cas d'échec on nettoie le bus avant de propager l'erreur.
+        engine.prepare()
+        do {
+            try engine.start()
+        } catch {
+            engine.stop()
+            throw error
+        }
         input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
             do { try audioFile.write(from: buffer) } catch { self?.writeFailed.store(true, ordering: .relaxed) }
             guard let levelHandler, let ch = buffer.floatChannelData else { return }
             let n = Int(buffer.frameLength)
-            let level = AudioLevel.rms(Array(UnsafeBufferPointer(start: ch[0], count: n)))
+            // RMS calculé directement sur le pointeur (Accelerate), sans `Array(...)` : on évite une
+            // allocation/copie heap par buffer sur le thread audio temps réel (déconseillée — risque de glitch).
+            var meanSquares: Float = 0
+            vDSP_measqv(ch[0], 1, &meanSquares, vDSP_Length(n))
+            let level = min(1, max(0, meanSquares.squareRoot()))
             DispatchQueue.main.async { levelHandler(level) }
         }
-        engine.prepare()
-        try engine.start()
         // Observateur installé seulement APRÈS un démarrage réussi (sinon il fuiterait si start() lève).
         // La config audio peut changer en cours d'enregistrement (route/périphérique, bascule d'espace
         // plein écran…), ce qui casse le format figé du fichier → on le journalise.
+        let truncatedHandler = onTruncated
         configObserver = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
             self?.writeFailed.store(true, ordering: .relaxed)
             AppLog.warn("AudioRecorder", "changement de configuration audio pendant l'enregistrement (route/format)")
+            // Avertit l'UI en temps réel : seul le début aura pu être capturé proprement.
+            truncatedHandler?()
         }
         self.file = audioFile
         self.currentURL = url

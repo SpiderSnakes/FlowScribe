@@ -28,6 +28,7 @@ struct GlossaryView: View {
                     Spacer()
                     Button(role: .destructive) { remove(t) } label: { Image(systemName: "trash") }
                         .buttonStyle(.borderless)
+                        .accessibilityLabel("Supprimer le terme \(t)")
                 }
             }
         }

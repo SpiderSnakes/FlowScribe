@@ -10,7 +10,9 @@ public struct MultipartFormData {
     public mutating func addField(name: String, value: String) {
         append("--\(boundary)\r\n")
         append("Content-Disposition: form-data; name=\"\(Self.header(name))\"\r\n\r\n")
-        append("\(value)\r\n")
+        // La valeur est elle aussi assainie (CR/LF) : sans ça, un modèle « custom » en saisie
+        // libre contenant un saut de ligne pourrait injecter des parts multipart arbitraires.
+        append("\(Self.sanitizeValue(value))\r\n")
     }
 
     public mutating func addFile(name: String, filename: String, contentType: String, data: Data) {
@@ -25,6 +27,13 @@ public struct MultipartFormData {
     private static func header(_ s: String) -> String {
         s.replacingOccurrences(of: "\"", with: "%22")
             .replacingOccurrences(of: "\r", with: "")
+            .replacingOccurrences(of: "\n", with: "")
+    }
+
+    /// Neutralise les sauts de ligne dans une valeur de part (anti-injection CRLF). Les
+    /// guillemets sont licites dans un corps de part, seuls les CR/LF sont à retirer.
+    private static func sanitizeValue(_ s: String) -> String {
+        s.replacingOccurrences(of: "\r", with: "")
             .replacingOccurrences(of: "\n", with: "")
     }
 
